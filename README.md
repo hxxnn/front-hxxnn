@@ -9,16 +9,17 @@ Anthropic 공식 `frontend-design` 스킬의 구조를 참고해 만든 개인�
 .claude-plugin/plugin.json      플러그인 메타데이터
 skills/front-design/SKILL.md    디자인 원칙과 작업 순서
 skills/front-design/references/
-  dashboard-layout.md           대시보드 기본 구성(레일·상단 바·유리 패널·카드)
+  dashboard-layout.md           대시보드 기본 구성(레일·상단 바·유리 패널·위젯)
+  dashboard-config.md           위젯 종류, 데이터별 고르는 법, 너비, CONFIG 스키마
   contrast-autocorrect.md       사용자가 색을 고르는 화면의 글자 대비 자동 보정
   rail-goo.md                   레일 선택 물방울 사용법
 skills/front-design/scripts/
   derive-palette.js             배경색·강조색에서 카드·글자 색을 계산하고 대비를 검사
 skills/front-design/assets/
-  dashboard-template.html       바로 쓰는 대시보드 틀(CONFIG만 바꾸면 됨)
+  dashboard-template.html       바로 쓰는 대시보드 틀(CONFIG의 위젯 구성만 바꾸면 됨)
   rail-goo.js                   레일 선택 물방울(WebGL). 템플릿과 같은 폴더에 함께 복사
 .claude-plugin/marketplace.json 마켓플레이스 등록 파일
-examples/                       지침으로 만든 시험작(가계부, 대시보드 v1~v3)
+examples/                       지침으로 만든 시험작(가계부, 대시보드 v1~v3, 운동 기록, 서버 상태)
 ```
 
 ## 핵심 원칙
@@ -53,6 +54,7 @@ Claude Code 2.1.275 이상에서 한 줄로 설치합니다.
 
 ## 버전
 
+- 0.9.0: 대시보드 안쪽을 위젯 구성으로 일반화(종류·개수·너비 가변, 카드 없는 지표·표, 차트 눈금 자동, 단위·부호·아이콘·제목·기본 팔레트 설정)
 - 0.8.0: 대시보드를 처음 열 때 인사말과 카드가 차례로 떠오르는 효과(staggerReveal) 추가
 - 0.7.0: 대시보드 레일에 선택 물방울(rail-goo) 추가
 - 0.6.0: 글자 대비 자동 보정 참고 자료(contrast-autocorrect.md) 추가

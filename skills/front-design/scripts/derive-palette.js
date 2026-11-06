@@ -102,6 +102,7 @@ var tokens = {
   '--ink': rgb2hex(ink),
   '--ink-2': rgba(ink, ink2),
   '--ink-3': rgba(ink, ink3),
+  '--rest': rgba(ink, dark ? 0.42 : 0.34),
   '--accent': rgb2hex(accent),
   '--accent-text': rgb2hex(accentText),
   '--on-accent': rgb2hex(onAccent),
