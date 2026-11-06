@@ -79,7 +79,7 @@ a { color: inherit; text-decoration: none; }
 .card { border-radius: 24px; background: var(--card); box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-1); min-width: 0; }
 
 /* ---------- 레이아웃 ---------- */
-.shell { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; max-width: 1320px; margin: 0 auto; padding: 20px 16px 40px; }
+.shell { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; max-width: 1320px; margin: 0 auto; padding: 20px 16px 40px; align-items: start; }
 .rail { position: sticky; top: 20px; align-self: start; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 28px; z-index: 30; }
 .rail .sp { flex: 1; min-height: 12px; }
 .nb { width: 40px; height: 40px; border: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; color: var(--ink-2); transition: background .2s, color .2s, transform .25s var(--spring); }
@@ -92,6 +92,16 @@ a { color: inherit; text-decoration: none; }
 .theme .moon { display: none; }
 :root[data-theme="light"] .theme .sun { display: none; }
 :root[data-theme="light"] .theme .moon { display: block; }
+.stage { display: grid; gap: 16px; min-width: 0; align-content: start; }
+.topbar { position: sticky; top: 20px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 6px 8px 6px 22px; border-radius: 999px; }
+.tdate { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; min-width: 0; }
+.tdate svg { width: 20px; height: 20px; color: var(--ink-2); flex: none; }
+.tdate span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tpill { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--well-2); font-size: .9rem; font-weight: 600; white-space: nowrap; transition: transform .2s var(--spring), background .2s; }
+.tpill:hover { background: var(--well); }
+.tpill:active { transform: scale(.96); }
+.tpill i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: block; }
+.tpill.over i { background: var(--strong); }
 .panel { border-radius: 36px; padding: 28px 28px 28px; min-width: 0; }
 .greet { margin: 0 0 20px 4px; }
 .greet h1 { margin: 0; font-size: clamp(1.7rem, 4vw, 2.3rem); line-height: 1.2; font-weight: 700; letter-spacing: -.02em; }
@@ -103,6 +113,7 @@ section[id] { scroll-margin-top: 20px; }
 
 @media (max-width: 899px) {
   .shell { grid-template-columns: minmax(0, 1fr); padding-bottom: 112px; }
+  .topbar { top: 12px; padding-left: 18px; }
   .rail { position: fixed; left: 16px; right: 16px; bottom: 12px; top: auto; flex-direction: row; justify-content: space-around; align-items: stretch; padding: 8px 6px; border-radius: 30px; }
   .rail .sp { display: none; }
   .nb { width: auto; flex: 1; height: 56px; border-radius: 22px; gap: 2px; align-content: center; }
@@ -237,6 +248,7 @@ tbody tr:last-child td { border-bottom: 0; }
     <symbol id="i-search" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></g></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></g></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></g></symbol>
+    <symbol id="i-cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></g></symbol>
     <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></g></symbol>
     <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></g></symbol>
     <symbol id="i-food" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 3.5v3M12 3v4M15 3.5v3"/></g></symbol>
@@ -266,6 +278,11 @@ tbody tr:last-child td { border-bottom: 0; }
     </button>
   </nav>
 
+  <div class="stage">
+  <header class="topbar glass">
+    <span class="tdate"><svg aria-hidden="true"><use href="#i-cal"/></svg><span id="topdate"></span></span>
+    <a class="tpill" href="#sec-limit"><i id="tdot"></i><span id="toppill"></span></a>
+  </header>
   <main class="panel glass">
     <header class="greet">
       <h1 id="greet">안녕하세요</h1>
@@ -333,6 +350,7 @@ tbody tr:last-child td { border-bottom: 0; }
       </section>
     </div>
   </main>
+  </div>
 </div>
 
 <div class="tip" id="tip" role="tooltip"></div>
@@ -392,7 +410,12 @@ tbody tr:last-child td { border-bottom: 0; }
   var limit = 700000;
   try { var l = parseInt(localStorage.getItem(LKEY), 10); if (l > 0) limit = l; } catch (e) {}
   var limitEl = $('limit');
+  var dn = ['일', '월', '화', '수', '목', '금', '토'];
+  $('topdate').textContent = Y + '년 ' + (M + 1) + '월 ' + D + '일 ' + dn[now.getDay()] + '요일';
   function renderLimit() {
+    var over = exp > limit;
+    $('toppill').textContent = over ? '한도 초과' : '한도 ' + Math.round(exp / limit * 100) + '% 사용';
+    document.querySelector('.tpill').classList.toggle('over', over);
     $('lmeter').style.width = Math.min(100, Math.round(exp / limit * 100)) + '%';
     $('lmeterA11y').setAttribute('aria-label', '한도 대비 지출 ' + Math.round(exp / limit * 100) + '%');
     $('lnote').textContent = exp > limit
