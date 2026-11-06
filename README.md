@@ -8,6 +8,9 @@ Anthropic 공식 `frontend-design` 스킬의 구조를 참고해 만든 개인�
 ```
 .claude-plugin/plugin.json      플러그인 메타데이터
 skills/front-design/SKILL.md    디자인 원칙과 작업 순서
+skills/front-design/references/
+  dashboard-layout.md           대시보드 기본 구성(레일·상단 바·유리 패널·카드)
+examples/                       지침으로 만든 시험작(가계부, 대시보드 v1~v3)
 ```
 
 ## 핵심 원칙
@@ -25,4 +28,5 @@ skills/front-design/SKILL.md    디자인 원칙과 작업 순서
 
 ## 버전
 
+- 0.2.0: 대시보드 기본 구성 추가, 그림자·색·폰트·배경 규칙 정리
 - 0.1.0: 뼈대
