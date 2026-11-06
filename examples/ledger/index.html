@@ -7,25 +7,78 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('ledger-theme'); } catch (e) {}
+  if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
 <style>
 :root {
-  --bg: #07142B;
+  --bg: #0B1220;
   --ink: #EAF4FF;
   --ink-2: rgba(234, 244, 255, .76);
   --ink-3: rgba(234, 244, 255, .56);
   --gold: #F6CF57;
+  --gold-text: #F6CF57;
   --food: #FF8A5B;
   --transit: #5BB8FF;
   --shop: #B58CFF;
   --home: #34D3B0;
   --fun: #FF7AB6;
   --etc: #9AB0C8;
+  --well: rgba(4, 14, 36, .42);
+  --on-c: #06122A;
+  --neg: #FFC2B3;
+  --err: #FFB4A4;
+  --hover: rgba(255, 255, 255, .12);
+  --hover2: rgba(255, 255, 255, .20);
+  --rule: rgba(255, 255, 255, .06);
+  --solid: #1C2B47;
+  --spec: rgba(255, 255, 255, .20);
+  --glass-bg: linear-gradient(150deg, rgba(255,255,255,.18) 0%, rgba(255,255,255,.07) 38%, rgba(255,255,255,.04) 62%, rgba(255,255,255,.11) 100%);
+  --glass-shadow: inset 0 1.5px 0 rgba(255,255,255,.60), inset 1.5px 0 0 rgba(255,255,255,.28), inset 0 -1px 0 rgba(255,255,255,.10), inset -1px 0 0 rgba(255,255,255,.08), inset 0 0 28px rgba(255,255,255,.07), inset -3px -5px 12px rgba(0,8,28,.28), 0 22px 44px -14px rgba(0,6,24,.65), 0 2px 6px rgba(0,6,24,.25);
+  --meter-track: rgba(246, 207, 87, .30);
+  --meter-fill: linear-gradient(90deg, #EAF4FF, #BFE0FF);
+  --thumb: linear-gradient(160deg, rgba(255,255,255,.34), rgba(255,255,255,.12));
+  --thumb-shadow: inset 0 1.5px 0 rgba(255,255,255,.7), inset 0 -2px 4px rgba(0,8,28,.25), 0 6px 14px -4px rgba(0,6,24,.55);
   --r-card: 28px;
   --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
   --spring: cubic-bezier(.34, 1.45, .5, 1);
 }
+:root[data-theme="light"] {
+  --bg: #EDF1F7;
+  --ink: #0E1A2B;
+  --ink-2: rgba(14, 26, 43, .74);
+  --ink-3: rgba(14, 26, 43, .56);
+  --gold-text: #8A6500;
+  --food: #C2410C;
+  --transit: #1769B8;
+  --shop: #6D3FC8;
+  --home: #087A63;
+  --fun: #C02672;
+  --etc: #52667D;
+  --well: rgba(14, 26, 43, .06);
+  --on-c: #FFFFFF;
+  --neg: #B42318;
+  --err: #B42318;
+  --hover: rgba(14, 26, 43, .08);
+  --hover2: rgba(14, 26, 43, .10);
+  --rule: rgba(14, 26, 43, .06);
+  --solid: #F7F9FC;
+  --spec: rgba(255, 255, 255, .95);
+  --glass-bg: linear-gradient(150deg, rgba(255,255,255,.72) 0%, rgba(255,255,255,.40) 45%, rgba(255,255,255,.56) 100%);
+  --glass-shadow: inset 0 1.5px 0 rgba(255,255,255,1), inset 1.5px 0 0 rgba(255,255,255,.8), inset 0 -1px 0 rgba(255,255,255,.55), inset 0 0 0 1px rgba(14,26,43,.07), inset -3px -5px 12px rgba(110,130,170,.10), 0 18px 40px -16px rgba(40,60,110,.30), 0 2px 6px rgba(40,60,110,.10);
+  --meter-track: rgba(184, 138, 0, .24);
+  --meter-fill: linear-gradient(90deg, #0E1A2B, #2A4468);
+  --thumb: linear-gradient(160deg, #FFFFFF, rgba(255,255,255,.72));
+  --thumb-shadow: inset 0 1.5px 0 #fff, 0 6px 14px -4px rgba(40,60,110,.38);
+}
 * { box-sizing: border-box; }
 html { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
 body {
   margin: 0;
   min-height: 100vh;
@@ -41,44 +94,21 @@ button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
 
-/* ---------- 배경: 장부 줄무늬 + 색 덩어리 (유리 뒤에 보여줄 것) ---------- */
-.bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
-.bg::before {
-  content: ""; position: absolute; inset: 0; z-index: 2;
-  background:
-    repeating-linear-gradient(to bottom, transparent 0 35px, rgba(234,244,255,.07) 35px 36px),
-    linear-gradient(to right, transparent 64px, rgba(255,122,182,.16) 64px 65px, transparent 65px);
-}
-.blob { position: absolute; border-radius: 50%; filter: blur(2px); animation: drift 38s ease-in-out infinite alternate; }
-.b1 { width: 60vmax; height: 60vmax; left: -18vmax; top: -22vmax; background: radial-gradient(circle at 40% 40%, #12B5A6 0%, rgba(18,181,166,0) 62%); }
-.b2 { width: 54vmax; height: 54vmax; right: -16vmax; top: 6vmax; background: radial-gradient(circle at 50% 50%, #7B5CFF 0%, rgba(123,92,255,0) 62%); animation-duration: 46s; }
-.b3 { width: 50vmax; height: 50vmax; left: 10vmax; bottom: -26vmax; background: radial-gradient(circle at 50% 50%, #FF6B5E 0%, rgba(255,107,94,0) 60%); animation-duration: 52s; }
-.b4 { width: 26vmax; height: 26vmax; right: 12vmax; bottom: 6vmax; background: radial-gradient(circle at 50% 50%, #F6CF57 0%, rgba(246,207,87,0) 62%); animation-duration: 34s; }
-@keyframes drift { to { transform: translate3d(5vmax, 4vmax, 0) scale(1.08); } }
 
 /* ---------- 유리 ---------- */
 .glass {
   position: relative;
   border-radius: var(--r-card);
-  background:
-    linear-gradient(150deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.07) 38%, rgba(255,255,255,.04) 62%, rgba(255,255,255,.12) 100%);
+  background: var(--glass-bg);
   -webkit-backdrop-filter: blur(16px) saturate(1.9) brightness(1.06);
   backdrop-filter: blur(16px) saturate(1.9) brightness(1.06);
-  box-shadow:
-    inset 0 1.5px 0 rgba(255,255,255,.60),
-    inset 1.5px 0 0 rgba(255,255,255,.28),
-    inset 0 -1px 0 rgba(255,255,255,.10),
-    inset -1px 0 0 rgba(255,255,255,.08),
-    inset 0 0 28px rgba(255,255,255,.07),
-    inset -3px -5px 12px rgba(0,8,28,.28),
-    0 22px 44px -14px rgba(0,6,24,.65),
-    0 2px 6px rgba(0,6,24,.25);
+  box-shadow: var(--glass-shadow);
   isolation: isolate;
 }
 /* 포인터를 따라가는 반사광 */
 .glass::after {
   content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1; pointer-events: none;
-  background: radial-gradient(240px circle at var(--mx, 18%) var(--my, 0%), rgba(255,255,255,.22), transparent 62%);
+  background: radial-gradient(240px circle at var(--mx, 18%) var(--my, 0%), var(--spec), transparent 62%);
   opacity: var(--hl, .55);
   transition: opacity .3s;
 }
@@ -88,23 +118,30 @@ html.lens .lens {
   backdrop-filter: url(#lens) blur(2px) saturate(1.9) brightness(1.08);
 }
 @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
-  .glass { background: #1C3358; }
+  .glass { background: var(--solid); }
 }
 @media (prefers-reduced-transparency: reduce) {
-  .glass { background: #1C3358; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .glass { background: var(--solid); -webkit-backdrop-filter: none; backdrop-filter: none; }
   html.lens .lens { -webkit-backdrop-filter: none; backdrop-filter: none; }
 }
 
 /* ---------- 레이아웃 ---------- */
-.wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 28px 16px 72px; }
-.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 4px 4px 22px; }
-h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; }
-.top .month { color: var(--ink-2); font-size: .95rem; }
+.wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 12px 16px 72px; }
+.top { position: sticky; top: 12px; z-index: 5; display: flex; align-items: center; gap: 12px; margin: 0 0 22px; padding: 6px 6px 6px 24px; border-radius: 999px; }
+h1 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
+.top .month { margin-left: auto; color: var(--ink-2); font-size: .95rem; }
+.theme { width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--well); color: var(--ink); transition: transform .3s var(--spring), background .2s; }
+.theme:hover { background: var(--hover); }
+.theme:active { transform: scale(.9); }
+.theme svg { width: 20px; height: 20px; }
+.theme .moon { display: none; }
+:root[data-theme="light"] .theme .sun { display: none; }
+:root[data-theme="light"] .theme .moon { display: block; }
 .cols { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); align-items: start; }
 .stack { display: grid; gap: 18px; min-width: 0; }
 @media (min-width: 900px) {
   .cols { grid-template-columns: 400px minmax(0, 1fr); gap: 24px; }
-  .left { position: sticky; top: 20px; }
+  .left { position: sticky; top: 88px; }
 }
 h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 
@@ -112,34 +149,34 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .hero { padding: 26px 24px 24px; }
 .hero-label { margin: 0; color: var(--ink-2); font-size: .95rem; }
 .hero-amount { margin: 2px 0 18px; font-size: clamp(2.5rem, 10vw, 3.5rem); line-height: 1.1; font-weight: 700; letter-spacing: -.025em; }
-.hero-amount.neg { color: #FFC2B3; }
+.hero-amount.neg { color: var(--neg); }
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
-.split > div { padding: 10px 14px; border-radius: 18px; background: rgba(4, 14, 36, .30); box-shadow: inset 0 1px 2px rgba(0,0,0,.25); }
+.split > div { padding: 10px 14px; border-radius: 18px; background: var(--well); box-shadow: inset 0 1px 2px rgba(0,0,0,.18); }
 .split dt { margin: 0; font-size: .82rem; color: var(--ink-2); }
 .split dd { margin: 0; font-size: 1.1rem; font-weight: 600; }
-.split .in dd { color: var(--gold); }
-.meter { height: 12px; border-radius: 999px; background: rgba(246, 207, 87, .30); box-shadow: inset 0 1px 3px rgba(0,0,0,.35); overflow: hidden; }
-.meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #EAF4FF, #BFE0FF); box-shadow: 0 0 12px rgba(234,244,255,.55); transition: width .7s var(--spring); }
+.split .in dd { color: var(--gold-text); }
+.meter { height: 12px; border-radius: 999px; background: var(--meter-track); box-shadow: inset 0 1px 3px rgba(0,0,0,.25); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--meter-fill); box-shadow: 0 1px 0 rgba(255,255,255,.35); transition: width .7s var(--spring); }
 .hero-note { margin: 10px 2px 0; color: var(--ink-2); font-size: .9rem; }
 
 /* ---------- 입력 ---------- */
 .card { padding: 22px 22px 24px; }
-.seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 999px; background: rgba(4, 14, 36, .38); box-shadow: inset 0 1px 3px rgba(0,0,0,.4); margin-bottom: 18px; }
+.seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 999px; background: var(--well); box-shadow: inset 0 1px 3px rgba(0,0,0,.25); margin-bottom: 18px; }
 .seg input { position: absolute; opacity: 0; pointer-events: none; }
 .seg label { position: relative; z-index: 2; text-align: center; padding: 9px 0; border-radius: 999px; font-weight: 600; cursor: pointer; color: var(--ink-2); transition: color .25s; min-height: 44px; display: grid; place-items: center; }
 .seg input:checked + label { color: var(--ink); }
 .seg input:focus-visible + label { outline: 2px solid var(--ink); outline-offset: 2px; }
 .seg .thumb {
   position: absolute; z-index: 1; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px;
-  background: linear-gradient(160deg, rgba(255,255,255,.34), rgba(255,255,255,.12));
-  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.7), inset 0 -2px 4px rgba(0,8,28,.25), 0 6px 14px -4px rgba(0,6,24,.55);
+  background: var(--thumb);
+  box-shadow: var(--thumb-shadow);
   transition: transform .45s var(--spring), background .3s;
 }
 .seg input:nth-of-type(2):checked ~ .thumb { transform: translateX(100%); background: linear-gradient(160deg, rgba(246,207,87,.62), rgba(246,207,87,.22)); }
 
 .field { display: block; margin-bottom: 14px; }
 .field > span { display: block; margin: 0 0 6px 4px; font-size: .88rem; color: var(--ink-2); }
-.input { width: 100%; min-height: 48px; padding: 0 18px; border-radius: 999px; border: 0; background: rgba(4, 14, 36, .38); box-shadow: inset 0 1px 3px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.06); color: var(--ink); }
+.input { width: 100%; min-height: 48px; padding: 0 18px; border-radius: 999px; border: 0; background: var(--well); box-shadow: inset 0 1px 3px rgba(0,0,0,.22), inset 0 0 0 1px var(--rule); color: var(--ink); }
 .input::placeholder { color: var(--ink-3); }
 .amount-wrap { position: relative; }
 .amount-wrap .input { padding-right: 46px; font-size: 1.25rem; font-weight: 600; }
@@ -147,15 +184,15 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
 .chip { position: relative; }
 .chip input { position: absolute; opacity: 0; pointer-events: none; }
-.chip label { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: color-mix(in oklab, var(--c) 14%, rgba(4,14,36,.35)); color: var(--ink); cursor: pointer; transition: background .2s, transform .25s var(--spring), color .2s; }
+.chip label { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: color-mix(in oklab, var(--c) 14%, var(--well)); color: var(--ink); cursor: pointer; transition: background .2s, transform .25s var(--spring), color .2s; }
 .chip svg { width: 18px; height: 18px; color: var(--c); }
 .chip label:active { transform: scale(.94); }
-.chip input:checked + label { background: var(--c); color: #06122A; font-weight: 600; box-shadow: 0 6px 16px -6px var(--c); }
-.chip input:checked + label svg { color: #06122A; }
+.chip input:checked + label { background: var(--c); color: var(--on-c); font-weight: 600; box-shadow: 0 6px 16px -6px var(--c); }
+.chip input:checked + label svg { color: var(--on-c); }
 .chip input:focus-visible + label { outline: 2px solid var(--ink); outline-offset: 2px; }
 .two { display: grid; grid-template-columns: 1fr; gap: 0 12px; }
 @media (min-width: 420px) { .two { grid-template-columns: 1fr 1fr; } }
-.err { min-height: 1.3em; margin: 0 4px 8px; color: #FFB4A4; font-size: .9rem; }
+.err { min-height: 1.3em; margin: 0 4px 8px; color: var(--err); font-size: .9rem; }
 .btn {
   width: 100%; min-height: 52px; border: 0; border-radius: 999px; font-weight: 700; font-size: 1.02rem; color: #06122A;
   background: linear-gradient(170deg, #FFF3C4 0%, var(--gold) 45%, #E9B93A 100%);
@@ -176,7 +213,7 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .catrow .am small { display: block; font-weight: 400; font-size: .8rem; color: var(--ink-2); }
 
 /* 아이콘 배지: 지출은 둥근 사각형, 수입은 원 */
-.badge { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; background: color-mix(in oklab, var(--c) 26%, rgba(4,14,36,.4)); color: var(--c); flex: none; }
+.badge { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; background: color-mix(in oklab, var(--c) 26%, var(--well)); color: var(--c); flex: none; }
 .badge svg { width: 22px; height: 22px; }
 .badge.in { border-radius: 50%; background: radial-gradient(circle at 35% 28%, #FFF1B8, var(--gold) 55%, #D9A92E); color: #5C4300; box-shadow: inset 0 -2px 4px rgba(120,80,0,.35); }
 
@@ -186,7 +223,7 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .dayhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0 12px 10px; }
 .dayhead h3 { margin: 0; font-size: .98rem; font-weight: 600; }
 .dayhead .sum { font-size: .9rem; color: var(--ink-2); text-align: right; }
-.dayhead .sum b { color: var(--gold); font-weight: 600; margin-left: 8px; }
+.dayhead .sum b { color: var(--gold-text); font-weight: 600; margin-left: 8px; }
 .items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
 .row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 8px 4px 8px 8px; border-radius: 20px; background: color-mix(in oklab, var(--c) 11%, transparent); }
 .row.income { background: rgba(246, 207, 87, .13); }
@@ -197,9 +234,9 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 .row .tag { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: color-mix(in oklab, var(--c) 35%, transparent); color: var(--ink); font-size: .74rem; font-weight: 600; }
 .row .amt { font-weight: 600; white-space: nowrap; }
 .row.big .amt { font-size: 1.2rem; font-weight: 700; }
-.row.income .amt { color: var(--gold); }
+.row.income .amt { color: var(--gold-text); }
 .del { width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-3); display: grid; place-items: center; transition: background .2s, color .2s, transform .25s var(--spring); }
-.del:hover { background: rgba(255,255,255,.12); color: var(--ink); }
+.del:hover { background: var(--hover); color: var(--ink); }
 .del:active { transform: scale(.88); }
 .del svg { width: 18px; height: 18px; }
 .empty { padding: 28px 22px; color: var(--ink-2); text-align: center; }
@@ -210,7 +247,7 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
 /* ---------- 알림 ---------- */
 .toast { position: fixed; z-index: 10; left: 50%; bottom: 22px; transform: translate(-50%, calc(100% + 48px)); visibility: hidden; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 10px 8px 22px; border-radius: 999px; transition: transform .5s var(--spring), visibility 0s .5s; max-width: calc(100vw - 32px); }
 .toast.show { transform: translate(-50%, 0); visibility: visible; transition: transform .5s var(--spring), visibility 0s; }
-.toast button { border: 0; border-radius: 999px; min-height: 40px; padding: 0 16px; background: rgba(255,255,255,.2); font-weight: 600; box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.toast button { border: 0; border-radius: 999px; min-height: 40px; padding: 0 16px; background: var(--hover2); font-weight: 600; }
 .toast button[hidden] { display: none; }
 
 .vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
@@ -239,18 +276,20 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
     <symbol id="i-wallet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4z"/><path d="M4 7a2 2 0 0 1 2-2h10M16 14h2"/></g></symbol>
     <symbol id="i-gift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v9H4zM3 7.5h18V11H3zM12 7.5V20"/><path d="M12 7.5c-3 0-4-4-1-4 2 0 1 4 1 4zM12 7.5c3 0 4-4 1-4-2 0-1 4-1 4z"/></g></symbol>
     <symbol id="i-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></g></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></g></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></g></symbol>
     <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></g></symbol>
   </defs>
 </svg>
 
-<div class="bg" aria-hidden="true">
-  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
-</div>
-
 <main class="wrap">
-  <header class="top">
+  <header class="top glass">
     <h1>가계부</h1>
     <span class="month" id="month"></span>
+    <button class="theme" id="theme" type="button" aria-label="라이트 모드로 전환">
+      <svg class="sun" aria-hidden="true"><use href="#i-sun"/></svg>
+      <svg class="moon" aria-hidden="true"><use href="#i-moon"/></svg>
+    </button>
   </header>
 
   <div class="cols">
@@ -549,6 +588,16 @@ h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
       });
     }, { passive: true });
   }
+
+  function applyTheme(t, persist) {
+    document.documentElement.setAttribute('data-theme', t);
+    $('theme').setAttribute('aria-label', t === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환');
+    if (persist) { try { localStorage.setItem('ledger-theme', t); } catch (e) {} }
+  }
+  $('theme').addEventListener('click', function () {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
+  });
+  applyTheme(document.documentElement.getAttribute('data-theme'), false);
 
   $('month').textContent = Y + '년 ' + (M + 1) + '월';
   setType('expense');
