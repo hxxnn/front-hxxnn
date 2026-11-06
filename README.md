@@ -10,10 +10,13 @@ Anthropic 공식 `frontend-design` 스킬의 구조를 참고해 만든 개인�
 skills/front-design/SKILL.md    디자인 원칙과 작업 순서
 skills/front-design/references/
   dashboard-layout.md           대시보드 기본 구성(레일·상단 바·유리 패널·카드)
+  contrast-autocorrect.md       사용자가 색을 고르는 화면의 글자 대비 자동 보정
+  rail-goo.md                   레일 선택 물방울 사용법
 skills/front-design/scripts/
   derive-palette.js             배경색·강조색에서 카드·글자 색을 계산하고 대비를 검사
 skills/front-design/assets/
   dashboard-template.html       바로 쓰는 대시보드 틀(CONFIG만 바꾸면 됨)
+  rail-goo.js                   레일 선택 물방울(WebGL). 템플릿과 같은 폴더에 함께 복사
 .claude-plugin/marketplace.json 마켓플레이스 등록 파일
 examples/                       지침으로 만든 시험작(가계부, 대시보드 v1~v3)
 ```
@@ -50,6 +53,8 @@ Claude Code 2.1.275 이상에서 한 줄로 설치합니다.
 
 ## 버전
 
+- 0.7.0: 대시보드 레일에 선택 물방울(rail-goo) 추가
+- 0.6.0: 글자 대비 자동 보정 참고 자료(contrast-autocorrect.md) 추가
 - 0.5.0: 대시보드 템플릿(assets/dashboard-template.html)과 마켓플레이스 등록 파일 추가
 - 0.4.0: 대시보드 레일에 색상 설정 패널(팔레트 버튼)을 기본으로 포함
 - 0.3.0: 팔레트 직접 지정(배경색·강조색) + 카드 대비 자동 계산 스크립트
