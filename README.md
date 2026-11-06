@@ -10,6 +10,8 @@ Anthropic 공식 `frontend-design` 스킬의 구조를 참고해 만든 개인�
 skills/front-design/SKILL.md    디자인 원칙과 작업 순서
 skills/front-design/references/
   dashboard-layout.md           대시보드 기본 구성(레일·상단 바·유리 패널·카드)
+skills/front-design/scripts/
+  derive-palette.js             배경색·강조색에서 카드·글자 색을 계산하고 대비를 검사
 examples/                       지침으로 만든 시험작(가계부, 대시보드 v1~v3)
 ```
 
@@ -28,5 +30,6 @@ examples/                       지침으로 만든 시험작(가계부, 대시�
 
 ## 버전
 
+- 0.3.0: 팔레트 직접 지정(배경색·강조색) + 카드 대비 자동 계산 스크립트
 - 0.2.0: 대시보드 기본 구성 추가, 그림자·색·폰트·배경 규칙 정리
 - 0.1.0: 뼈대
