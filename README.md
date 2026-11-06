@@ -53,6 +53,7 @@ Claude Code 2.1.275 이상에서 한 줄로 설치합니다.
 
 ## 버전
 
+- 0.8.0: 대시보드를 처음 열 때 인사말과 카드가 차례로 떠오르는 효과(staggerReveal) 추가
 - 0.7.0: 대시보드 레일에 선택 물방울(rail-goo) 추가
 - 0.6.0: 글자 대비 자동 보정 참고 자료(contrast-autocorrect.md) 추가
 - 0.5.0: 대시보드 템플릿(assets/dashboard-template.html)과 마켓플레이스 등록 파일 추가
