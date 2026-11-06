@@ -1,0 +1,559 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가계부</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #07142B;
+  --ink: #EAF4FF;
+  --ink-2: rgba(234, 244, 255, .76);
+  --ink-3: rgba(234, 244, 255, .56);
+  --gold: #F6CF57;
+  --food: #FF8A5B;
+  --transit: #5BB8FF;
+  --shop: #B58CFF;
+  --home: #34D3B0;
+  --fun: #FF7AB6;
+  --etc: #9AB0C8;
+  --r-card: 28px;
+  --font: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", system-ui, sans-serif;
+  --spring: cubic-bezier(.34, 1.45, .5, 1);
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; }
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font);
+  font-size: 16px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+  -webkit-font-smoothing: antialiased;
+}
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 3px; }
+
+/* ---------- 배경: 장부 줄무늬 + 색 덩어리 (유리 뒤에 보여줄 것) ---------- */
+.bg { position: fixed; inset: 0; z-index: 0; overflow: hidden; pointer-events: none; }
+.bg::before {
+  content: ""; position: absolute; inset: 0; z-index: 2;
+  background:
+    repeating-linear-gradient(to bottom, transparent 0 35px, rgba(234,244,255,.07) 35px 36px),
+    linear-gradient(to right, transparent 64px, rgba(255,122,182,.16) 64px 65px, transparent 65px);
+}
+.blob { position: absolute; border-radius: 50%; filter: blur(2px); animation: drift 38s ease-in-out infinite alternate; }
+.b1 { width: 60vmax; height: 60vmax; left: -18vmax; top: -22vmax; background: radial-gradient(circle at 40% 40%, #12B5A6 0%, rgba(18,181,166,0) 62%); }
+.b2 { width: 54vmax; height: 54vmax; right: -16vmax; top: 6vmax; background: radial-gradient(circle at 50% 50%, #7B5CFF 0%, rgba(123,92,255,0) 62%); animation-duration: 46s; }
+.b3 { width: 50vmax; height: 50vmax; left: 10vmax; bottom: -26vmax; background: radial-gradient(circle at 50% 50%, #FF6B5E 0%, rgba(255,107,94,0) 60%); animation-duration: 52s; }
+.b4 { width: 26vmax; height: 26vmax; right: 12vmax; bottom: 6vmax; background: radial-gradient(circle at 50% 50%, #F6CF57 0%, rgba(246,207,87,0) 62%); animation-duration: 34s; }
+@keyframes drift { to { transform: translate3d(5vmax, 4vmax, 0) scale(1.08); } }
+
+/* ---------- 유리 ---------- */
+.glass {
+  position: relative;
+  border-radius: var(--r-card);
+  background:
+    linear-gradient(150deg, rgba(255,255,255,.20) 0%, rgba(255,255,255,.07) 38%, rgba(255,255,255,.04) 62%, rgba(255,255,255,.12) 100%);
+  -webkit-backdrop-filter: blur(16px) saturate(1.9) brightness(1.06);
+  backdrop-filter: blur(16px) saturate(1.9) brightness(1.06);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255,255,255,.60),
+    inset 1.5px 0 0 rgba(255,255,255,.28),
+    inset 0 -1px 0 rgba(255,255,255,.10),
+    inset -1px 0 0 rgba(255,255,255,.08),
+    inset 0 0 28px rgba(255,255,255,.07),
+    inset -3px -5px 12px rgba(0,8,28,.28),
+    0 22px 44px -14px rgba(0,6,24,.65),
+    0 2px 6px rgba(0,6,24,.25);
+  isolation: isolate;
+}
+/* 포인터를 따라가는 반사광 */
+.glass::after {
+  content: ""; position: absolute; inset: 0; border-radius: inherit; z-index: -1; pointer-events: none;
+  background: radial-gradient(240px circle at var(--mx, 18%) var(--my, 0%), rgba(255,255,255,.22), transparent 62%);
+  opacity: var(--hl, .55);
+  transition: opacity .3s;
+}
+.glass.hot { --hl: 1; }
+html.lens .lens {
+  -webkit-backdrop-filter: url(#lens) blur(2px) saturate(1.9) brightness(1.08);
+  backdrop-filter: url(#lens) blur(2px) saturate(1.9) brightness(1.08);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: #1C3358; }
+}
+@media (prefers-reduced-transparency: reduce) {
+  .glass { background: #1C3358; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  html.lens .lens { -webkit-backdrop-filter: none; backdrop-filter: none; }
+}
+
+/* ---------- 레이아웃 ---------- */
+.wrap { position: relative; z-index: 1; max-width: 1080px; margin: 0 auto; padding: 28px 16px 72px; }
+.top { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin: 4px 4px 22px; }
+h1 { margin: 0; font-size: 1.5rem; font-weight: 700; letter-spacing: -.01em; }
+.top .month { color: var(--ink-2); font-size: .95rem; }
+.cols { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+.stack { display: grid; gap: 18px; min-width: 0; }
+@media (min-width: 900px) {
+  .cols { grid-template-columns: 400px minmax(0, 1fr); gap: 24px; }
+  .left { position: sticky; top: 20px; }
+}
+h2 { margin: 0 0 14px; font-size: 1.05rem; font-weight: 600; }
+
+/* ---------- 요약(히어로) ---------- */
+.hero { padding: 26px 24px 24px; }
+.hero-label { margin: 0; color: var(--ink-2); font-size: .95rem; }
+.hero-amount { margin: 2px 0 18px; font-size: clamp(2.5rem, 10vw, 3.5rem); line-height: 1.1; font-weight: 700; letter-spacing: -.025em; }
+.hero-amount.neg { color: #FFC2B3; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.split > div { padding: 10px 14px; border-radius: 18px; background: rgba(4, 14, 36, .30); box-shadow: inset 0 1px 2px rgba(0,0,0,.25); }
+.split dt { margin: 0; font-size: .82rem; color: var(--ink-2); }
+.split dd { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.split .in dd { color: var(--gold); }
+.meter { height: 12px; border-radius: 999px; background: rgba(246, 207, 87, .30); box-shadow: inset 0 1px 3px rgba(0,0,0,.35); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: linear-gradient(90deg, #EAF4FF, #BFE0FF); box-shadow: 0 0 12px rgba(234,244,255,.55); transition: width .7s var(--spring); }
+.hero-note { margin: 10px 2px 0; color: var(--ink-2); font-size: .9rem; }
+
+/* ---------- 입력 ---------- */
+.card { padding: 22px 22px 24px; }
+.seg { position: relative; display: grid; grid-template-columns: 1fr 1fr; padding: 4px; border-radius: 999px; background: rgba(4, 14, 36, .38); box-shadow: inset 0 1px 3px rgba(0,0,0,.4); margin-bottom: 18px; }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.seg label { position: relative; z-index: 2; text-align: center; padding: 9px 0; border-radius: 999px; font-weight: 600; cursor: pointer; color: var(--ink-2); transition: color .25s; min-height: 44px; display: grid; place-items: center; }
+.seg input:checked + label { color: var(--ink); }
+.seg input:focus-visible + label { outline: 2px solid var(--ink); outline-offset: 2px; }
+.seg .thumb {
+  position: absolute; z-index: 1; top: 4px; bottom: 4px; left: 4px; width: calc(50% - 4px); border-radius: 999px;
+  background: linear-gradient(160deg, rgba(255,255,255,.34), rgba(255,255,255,.12));
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.7), inset 0 -2px 4px rgba(0,8,28,.25), 0 6px 14px -4px rgba(0,6,24,.55);
+  transition: transform .45s var(--spring), background .3s;
+}
+.seg input:nth-of-type(2):checked ~ .thumb { transform: translateX(100%); background: linear-gradient(160deg, rgba(246,207,87,.62), rgba(246,207,87,.22)); }
+
+.field { display: block; margin-bottom: 14px; }
+.field > span { display: block; margin: 0 0 6px 4px; font-size: .88rem; color: var(--ink-2); }
+.input { width: 100%; min-height: 48px; padding: 0 18px; border-radius: 999px; border: 0; background: rgba(4, 14, 36, .38); box-shadow: inset 0 1px 3px rgba(0,0,0,.4), inset 0 0 0 1px rgba(255,255,255,.06); color: var(--ink); }
+.input::placeholder { color: var(--ink-3); }
+.amount-wrap { position: relative; }
+.amount-wrap .input { padding-right: 46px; font-size: 1.25rem; font-weight: 600; }
+.amount-wrap em { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--ink-2); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.chip { position: relative; }
+.chip input { position: absolute; opacity: 0; pointer-events: none; }
+.chip label { display: inline-flex; align-items: center; gap: 6px; min-height: 40px; padding: 0 14px 0 10px; border-radius: 999px; background: color-mix(in oklab, var(--c) 14%, rgba(4,14,36,.35)); color: var(--ink); cursor: pointer; transition: background .2s, transform .25s var(--spring), color .2s; }
+.chip svg { width: 18px; height: 18px; color: var(--c); }
+.chip label:active { transform: scale(.94); }
+.chip input:checked + label { background: var(--c); color: #06122A; font-weight: 600; box-shadow: 0 6px 16px -6px var(--c); }
+.chip input:checked + label svg { color: #06122A; }
+.chip input:focus-visible + label { outline: 2px solid var(--ink); outline-offset: 2px; }
+.two { display: grid; grid-template-columns: 1fr; gap: 0 12px; }
+@media (min-width: 420px) { .two { grid-template-columns: 1fr 1fr; } }
+.err { min-height: 1.3em; margin: 0 4px 8px; color: #FFB4A4; font-size: .9rem; }
+.btn {
+  width: 100%; min-height: 52px; border: 0; border-radius: 999px; font-weight: 700; font-size: 1.02rem; color: #06122A;
+  background: linear-gradient(170deg, #FFF3C4 0%, var(--gold) 45%, #E9B93A 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255,255,255,.85), inset 0 -3px 6px rgba(160,100,0,.35), 0 12px 24px -10px rgba(246,207,87,.7);
+  transition: transform .3s var(--spring), filter .2s;
+}
+.btn:active { transform: scale(.96); filter: brightness(.95); }
+.btn.expense { background: linear-gradient(170deg, #FFE0D2 0%, #FF9C75 45%, #F0733F 100%); box-shadow: inset 0 1.5px 0 rgba(255,255,255,.8), inset 0 -3px 6px rgba(140,40,0,.35), 0 12px 24px -10px rgba(255,138,91,.7); }
+
+/* ---------- 카테고리 요약 ---------- */
+.stackbar { display: flex; gap: 3px; height: 16px; margin-bottom: 16px; }
+.stackbar i { display: block; min-width: 6px; border-radius: 999px; background: var(--c); box-shadow: inset 0 1px 0 rgba(255,255,255,.45); transition: flex-basis .6s var(--spring); }
+.catrow { display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 8px 12px 8px 8px; border-radius: 18px; }
+.catrow + .catrow { margin-top: 4px; }
+.catrow:first-of-type { background: color-mix(in oklab, var(--c) 16%, transparent); }
+.catrow .nm { font-weight: 500; }
+.catrow .am { text-align: right; font-weight: 600; line-height: 1.25; }
+.catrow .am small { display: block; font-weight: 400; font-size: .8rem; color: var(--ink-2); }
+
+/* 아이콘 배지: 지출은 둥근 사각형, 수입은 원 */
+.badge { width: 40px; height: 40px; display: grid; place-items: center; border-radius: 13px; background: color-mix(in oklab, var(--c) 26%, rgba(4,14,36,.4)); color: var(--c); flex: none; }
+.badge svg { width: 22px; height: 22px; }
+.badge.in { border-radius: 50%; background: radial-gradient(circle at 35% 28%, #FFF1B8, var(--gold) 55%, #D9A92E); color: #5C4300; box-shadow: inset 0 -2px 4px rgba(120,80,0,.35); }
+
+/* ---------- 내역 목록 ---------- */
+.day { padding: 16px 12px 12px; }
+.day + .day { margin-top: 0; }
+.dayhead { display: flex; justify-content: space-between; align-items: baseline; gap: 10px; padding: 0 12px 10px; }
+.dayhead h3 { margin: 0; font-size: .98rem; font-weight: 600; }
+.dayhead .sum { font-size: .9rem; color: var(--ink-2); text-align: right; }
+.dayhead .sum b { color: var(--gold); font-weight: 600; margin-left: 8px; }
+.items { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 12px; padding: 8px 4px 8px 8px; border-radius: 20px; background: color-mix(in oklab, var(--c) 11%, transparent); }
+.row.income { background: rgba(246, 207, 87, .13); }
+.row.big { background: color-mix(in oklab, var(--c) 24%, transparent); box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--c) 45%, transparent); padding-top: 12px; padding-bottom: 12px; }
+.row .t { min-width: 0; }
+.row .memo { display: block; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.row .cat { display: block; font-size: .8rem; color: var(--ink-2); }
+.row .tag { margin-left: 8px; padding: 1px 8px; border-radius: 999px; background: color-mix(in oklab, var(--c) 35%, transparent); color: var(--ink); font-size: .74rem; font-weight: 600; }
+.row .amt { font-weight: 600; white-space: nowrap; }
+.row.big .amt { font-size: 1.2rem; font-weight: 700; }
+.row.income .amt { color: var(--gold); }
+.del { width: 44px; height: 44px; border: 0; border-radius: 50%; background: transparent; color: var(--ink-3); display: grid; place-items: center; transition: background .2s, color .2s, transform .25s var(--spring); }
+.del:hover { background: rgba(255,255,255,.12); color: var(--ink); }
+.del:active { transform: scale(.88); }
+.del svg { width: 18px; height: 18px; }
+.empty { padding: 28px 22px; color: var(--ink-2); text-align: center; }
+.foot { display: flex; justify-content: flex-end; margin-top: 18px; }
+.link { border: 0; background: none; color: var(--ink-3); text-decoration: underline; text-underline-offset: 3px; min-height: 44px; padding: 0 8px; }
+.link:hover { color: var(--ink); }
+
+/* ---------- 알림 ---------- */
+.toast { position: fixed; z-index: 10; left: 50%; bottom: 22px; transform: translate(-50%, calc(100% + 48px)); visibility: hidden; display: flex; align-items: center; gap: 10px; min-height: 56px; padding: 8px 10px 8px 22px; border-radius: 999px; transition: transform .5s var(--spring), visibility 0s .5s; max-width: calc(100vw - 32px); }
+.toast.show { transform: translate(-50%, 0); visibility: visible; transition: transform .5s var(--spring), visibility 0s; }
+.toast button { border: 0; border-radius: 999px; min-height: 40px; padding: 0 16px; background: rgba(255,255,255,.2); font-weight: 600; box-shadow: inset 0 1px 0 rgba(255,255,255,.5); }
+.toast button[hidden] { display: none; }
+
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<!-- 굴절 필터: 가장자리에서 뒤 배경이 휘어 보이게 한다 (Chromium 계열에서만 적용) -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <filter id="lens" x="0" y="0" width="1" height="1" primitiveUnits="objectBoundingBox" color-interpolation-filters="sRGB">
+      <feImage x="0" y="0" width="1" height="1" preserveAspectRatio="none" result="map"
+        href="data:image/svg+xml;utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='100' height='100' viewBox='0 0 100 100' preserveAspectRatio='none'%3E%3Cdefs%3E%3ClinearGradient id='x' x1='0' x2='1' y1='0' y2='0'%3E%3Cstop offset='0' stop-color='rgb(214,255,255)'/%3E%3Cstop offset='.16' stop-color='rgb(128,255,255)'/%3E%3Cstop offset='.84' stop-color='rgb(128,255,255)'/%3E%3Cstop offset='1' stop-color='rgb(42,255,255)'/%3E%3C/linearGradient%3E%3ClinearGradient id='y' x1='0' x2='0' y1='0' y2='1'%3E%3Cstop offset='0' stop-color='rgb(255,214,255)'/%3E%3Cstop offset='.16' stop-color='rgb(255,128,255)'/%3E%3Cstop offset='.84' stop-color='rgb(255,128,255)'/%3E%3Cstop offset='1' stop-color='rgb(255,42,255)'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='100' height='100' fill='white'/%3E%3Crect width='100' height='100' fill='url(%23x)'/%3E%3Crect width='100' height='100' fill='url(%23y)' style='mix-blend-mode:multiply'/%3E%3C/svg%3E"/>
+      <feDisplacementMap in="SourceGraphic" in2="map" scale="0.35" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <symbol id="i-food" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 3.5v3M12 3v4M15 3.5v3"/></g></symbol>
+    <symbol id="i-transit" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="13.5" rx="3.5"/><path d="M4 11h16M7.5 17v3M16.5 17v3"/><circle cx="8" cy="14" r=".6"/><circle cx="16" cy="14" r=".6"/></g></symbol>
+    <symbol id="i-shop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></g></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/></g></symbol>
+    <symbol id="i-fun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.6L20 11l-5.6 2.4L12 19l-2.4-5.6L4 11l5.6-2.4z"/></g></symbol>
+    <symbol id="i-etc" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="6" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18" cy="12" r="1.9"/></g></symbol>
+    <symbol id="i-wallet" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h14a2 2 0 0 1 2 2v9a2 2 0 0 1-2 2H4z"/><path d="M4 7a2 2 0 0 1 2-2h10M16 14h2"/></g></symbol>
+    <symbol id="i-gift" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16v9H4zM3 7.5h18V11H3zM12 7.5V20"/><path d="M12 7.5c-3 0-4-4-1-4 2 0 1 4 1 4zM12 7.5c3 0 4-4 1-4-2 0-1 4-1 4z"/></g></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><path d="M12 8v8M8 12h8"/></g></symbol>
+    <symbol id="i-x" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></g></symbol>
+  </defs>
+</svg>
+
+<div class="bg" aria-hidden="true">
+  <div class="blob b1"></div><div class="blob b2"></div><div class="blob b3"></div><div class="blob b4"></div>
+</div>
+
+<main class="wrap">
+  <header class="top">
+    <h1>가계부</h1>
+    <span class="month" id="month"></span>
+  </header>
+
+  <div class="cols">
+    <div class="stack left">
+      <section class="glass lens hero" aria-labelledby="hl">
+        <p class="hero-label" id="hl">이번 달 남은 돈</p>
+        <p class="hero-amount" id="balance">0원</p>
+        <dl class="split">
+          <div class="in"><dt>수입</dt><dd id="inc">0원</dd></div>
+          <div><dt>지출</dt><dd id="exp">0원</dd></div>
+        </dl>
+        <div class="meter" role="img" id="meterA11y" aria-label="수입 대비 지출 비율"><i id="meter"></i></div>
+        <p class="hero-note" id="note"></p>
+      </section>
+
+      <form class="glass card" id="form" novalidate aria-label="내역 추가">
+        <div class="seg" role="radiogroup" aria-label="구분">
+          <input type="radio" name="type" id="t-exp" value="expense" checked>
+          <label for="t-exp">지출</label>
+          <input type="radio" name="type" id="t-inc" value="income">
+          <label for="t-inc">수입</label>
+          <span class="thumb" aria-hidden="true"></span>
+        </div>
+
+        <label class="field">
+          <span>금액</span>
+          <div class="amount-wrap">
+            <input class="input" id="amount" inputmode="numeric" autocomplete="off" placeholder="0" aria-describedby="err">
+            <em>원</em>
+          </div>
+        </label>
+
+        <fieldset style="border:0;padding:0;margin:0">
+          <legend class="vh">카테고리</legend>
+          <div class="chips" id="chips"></div>
+        </fieldset>
+
+        <div class="two">
+          <label class="field">
+            <span>메모</span>
+            <input class="input" id="memo" maxlength="30" autocomplete="off" placeholder="예: 점심 김치찌개">
+          </label>
+          <label class="field">
+            <span>날짜</span>
+            <input class="input" id="date" type="date">
+          </label>
+        </div>
+
+        <p class="err" id="err" role="alert"></p>
+        <button class="btn expense lens" id="submit" type="submit">지출 추가</button>
+      </form>
+    </div>
+
+    <div class="stack">
+      <section class="glass card" aria-labelledby="ch">
+        <h2 id="ch">카테고리별 지출</h2>
+        <div id="cats"></div>
+      </section>
+
+      <section aria-labelledby="lh">
+        <h2 id="lh" style="margin-left:6px">이번 달 내역</h2>
+        <div id="list" class="stack" style="gap:14px"></div>
+        <div class="foot"><button class="link" id="clear" type="button">내역 모두 지우기</button></div>
+      </section>
+    </div>
+  </div>
+</main>
+
+<div class="glass lens toast" id="toast" role="status" aria-live="polite">
+  <span id="toastMsg"></span>
+  <button type="button" id="undo" hidden>되돌리기</button>
+</div>
+
+<script>
+(function () {
+  if (/Chrome\//.test(navigator.userAgent)) document.documentElement.classList.add('lens');
+
+  var CATS = {
+    expense: [
+      { id: 'food', name: '식비', icon: 'i-food' },
+      { id: 'transit', name: '교통', icon: 'i-transit' },
+      { id: 'shop', name: '쇼핑', icon: 'i-shop' },
+      { id: 'home', name: '주거', icon: 'i-home' },
+      { id: 'fun', name: '여가', icon: 'i-fun' },
+      { id: 'etc', name: '기타', icon: 'i-etc' }
+    ],
+    income: [
+      { id: 'salary', name: '월급', icon: 'i-wallet' },
+      { id: 'allow', name: '용돈', icon: 'i-gift' },
+      { id: 'otherin', name: '기타 수입', icon: 'i-plus' }
+    ]
+  };
+  var BY_ID = {};
+  CATS.expense.concat(CATS.income).forEach(function (c) { BY_ID[c.id] = c; });
+  var BIG = 50000;
+  var KEY = 'ledger-test-v1';
+
+  var $ = function (id) { return document.getElementById(id); };
+  var now = new Date();
+  var Y = now.getFullYear(), M = now.getMonth(), D = now.getDate();
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var ym = Y + '-' + pad(M + 1);
+  var iso = function (d) { return ym + '-' + pad(d); };
+  var won = function (n) { return n.toLocaleString('ko-KR') + '원'; };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); };
+  var icon = function (id) { return '<svg aria-hidden="true"><use href="#' + id + '"/></svg>'; };
+
+  function seed() {
+    var d = function (n) { return iso(Math.min(n, D)); };
+    var list = [
+      ['income', 2800000, 'salary', '11월 월급', d(1)],
+      ['expense', 450000, 'home', '월세', d(1)],
+      ['expense', 9000, 'food', '점심 김치찌개', d(2)],
+      ['expense', 1450, 'transit', '지하철', d(2)],
+      ['expense', 5200, 'food', '카페 라테', d(3)],
+      ['expense', 89000, 'shop', '운동화', d(3)],
+      ['income', 50000, 'allow', '부모님 용돈', d(3)],
+      ['expense', 15000, 'fun', '영화', d(4)],
+      ['expense', 18500, 'food', '저녁 파스타', d(4)],
+      ['expense', 12800, 'transit', '택시', d(5)],
+      ['expense', 55000, 'etc', '통신비', d(5)],
+      ['expense', 6300, 'food', '아침 샌드위치', d(6)]
+    ];
+    return list.map(function (r, i) { return { id: 's' + i, type: r[0], amount: r[1], cat: r[2], memo: r[3], date: r[4] }; });
+  }
+  function load() {
+    try { var raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {}
+    return seed();
+  }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(entries)); } catch (e) {} }
+  var entries = load();
+  var lastDeleted = null;
+
+  /* ---------- 렌더링 ---------- */
+  function monthEntries() { return entries.filter(function (e) { return e.date.indexOf(ym) === 0; }); }
+
+  function renderHero(list) {
+    var inc = 0, exp = 0;
+    list.forEach(function (e) { if (e.type === 'income') inc += e.amount; else exp += e.amount; });
+    var bal = inc - exp;
+    var b = $('balance');
+    b.textContent = (bal < 0 ? '−' : '') + won(Math.abs(bal));
+    b.classList.toggle('neg', bal < 0);
+    $('inc').textContent = won(inc);
+    $('exp').textContent = won(exp);
+    var pct = inc > 0 ? Math.min(100, Math.round(exp / inc * 100)) : (exp > 0 ? 100 : 0);
+    $('meter').style.width = pct + '%';
+    $('meterA11y').setAttribute('aria-label', '수입 대비 지출 ' + (inc > 0 ? Math.round(exp / inc * 100) : 0) + '%');
+    var note;
+    if (!inc && !exp) note = '아직 내역이 없어요. 아래에서 첫 내역을 추가해 보세요.';
+    else if (!inc) note = '수입 내역이 없어요. 수입을 추가하면 남은 돈을 정확히 계산해요.';
+    else if (exp > inc) note = '수입보다 ' + won(exp - inc) + ' 더 썼어요.';
+    else note = '수입의 ' + Math.round(exp / inc * 100) + '%를 썼어요.';
+    $('note').textContent = note;
+  }
+
+  function renderCats(list) {
+    var totals = {}, sum = 0;
+    list.forEach(function (e) { if (e.type === 'expense') { totals[e.cat] = (totals[e.cat] || 0) + e.amount; sum += e.amount; } });
+    var rows = Object.keys(totals).map(function (k) { return { c: BY_ID[k], v: totals[k] }; }).sort(function (a, b) { return b.v - a.v; });
+    if (!rows.length) { $('cats').innerHTML = '<p class="empty" style="padding:8px 0">이번 달 지출이 아직 없어요.</p>'; return; }
+    var bar = '<div class="stackbar" role="img" aria-label="카테고리별 지출 비율">' + rows.map(function (r) {
+      return '<i style="flex:' + r.v + ' 1 0;--c:var(--' + r.c.id + ')"></i>';
+    }).join('') + '</div>';
+    var rowsHtml = rows.map(function (r) {
+      return '<div class="catrow" style="--c:var(--' + r.c.id + ')"><span class="badge">' + icon(r.c.icon) + '</span>' +
+        '<span class="nm">' + r.c.name + '</span>' +
+        '<span class="am">' + won(r.v) + '<small>' + Math.round(r.v / sum * 100) + '%</small></span></div>';
+    }).join('');
+    $('cats').innerHTML = bar + rowsHtml;
+  }
+
+  function renderList(list) {
+    if (!list.length) { $('list').innerHTML = '<div class="glass empty">이번 달 내역이 없어요. 왼쪽에서 첫 지출이나 수입을 추가해 보세요.</div>'; return; }
+    var groups = {};
+    list.forEach(function (e) { (groups[e.date] = groups[e.date] || []).push(e); });
+    var days = Object.keys(groups).sort().reverse();
+    $('list').innerHTML = days.map(function (day) {
+      var items = groups[day];
+      var dIn = 0, dEx = 0;
+      items.forEach(function (e) { if (e.type === 'income') dIn += e.amount; else dEx += e.amount; });
+      var dt = new Date(Y, M, parseInt(day.slice(8), 10));
+      var title = dt.toLocaleDateString('ko-KR', { month: 'long', day: 'numeric', weekday: 'long' });
+      var sum = (dEx ? '−' + won(dEx) : '') + (dIn ? '<b>+' + won(dIn) + '</b>' : '');
+      var rows = items.slice().reverse().map(function (e) {
+        var c = BY_ID[e.cat] || CATS.expense[5];
+        var inc = e.type === 'income';
+        var big = !inc && e.amount >= BIG;
+        var label = e.memo ? esc(e.memo) : c.name;
+        return '<li class="row ' + (inc ? 'income' : '') + (big ? ' big' : '') + '" style="--c:' + (inc ? 'var(--gold)' : 'var(--' + c.id + ')') + '">' +
+          '<span class="badge ' + (inc ? 'in' : '') + '">' + icon(c.icon) + '</span>' +
+          '<span class="t"><span class="memo">' + label + '</span><span class="cat">' + c.name + (big ? '<span class="tag">큰 지출</span>' : '') + '</span></span>' +
+          '<span class="amt">' + (inc ? '+' : '−') + won(e.amount) + '</span>' +
+          '<button class="del" type="button" data-id="' + esc(e.id) + '" aria-label="' + label + ' 삭제">' + icon('i-x') + '</button></li>';
+      }).join('');
+      return '<section class="glass day"><div class="dayhead"><h3>' + title + '</h3><span class="sum">' + sum + '</span></div><ul class="items">' + rows + '</ul></section>';
+    }).join('');
+  }
+
+  function render() {
+    var list = monthEntries();
+    renderHero(list); renderCats(list); renderList(list);
+  }
+
+  /* ---------- 입력 ---------- */
+  var type = 'expense';
+  function renderChips() {
+    $('chips').innerHTML = CATS[type].map(function (c, i) {
+      var color = type === 'income' ? 'var(--gold)' : 'var(--' + c.id + ')';
+      return '<div class="chip" style="--c:' + color + '"><input type="radio" name="cat" id="c-' + c.id + '" value="' + c.id + '"' + (i === 0 ? ' checked' : '') + '>' +
+        '<label for="c-' + c.id + '">' + icon(c.icon) + c.name + '</label></div>';
+    }).join('');
+  }
+  function setType(t) {
+    type = t;
+    renderChips();
+    var btn = $('submit');
+    btn.textContent = t === 'income' ? '수입 추가' : '지출 추가';
+    btn.classList.toggle('expense', t === 'expense');
+    $('memo').placeholder = t === 'income' ? '예: 11월 월급' : '예: 점심 김치찌개';
+  }
+  document.querySelectorAll('input[name=type]').forEach(function (r) {
+    r.addEventListener('change', function () { setType(r.value); });
+  });
+
+  var amount = $('amount');
+  amount.addEventListener('input', function () {
+    var digits = amount.value.replace(/\D/g, '').slice(0, 10);
+    amount.value = digits ? parseInt(digits, 10).toLocaleString('ko-KR') : '';
+    $('err').textContent = '';
+  });
+
+  var dateEl = $('date');
+  dateEl.min = iso(1);
+  dateEl.max = iso(new Date(Y, M + 1, 0).getDate());
+  dateEl.value = iso(D);
+
+  $('form').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var v = parseInt(amount.value.replace(/\D/g, ''), 10);
+    if (!v || v < 1) { $('err').textContent = '금액을 입력해 주세요.'; amount.focus(); return; }
+    var d = dateEl.value;
+    if (!d || d.indexOf(ym) !== 0) { $('err').textContent = '이번 달 안의 날짜를 선택해 주세요.'; dateEl.focus(); return; }
+    var cat = document.querySelector('input[name=cat]:checked').value;
+    entries.push({ id: 'e' + Date.now() + Math.random().toString(36).slice(2, 6), type: type, amount: v, cat: cat, memo: $('memo').value.trim(), date: d });
+    save(); render();
+    amount.value = ''; $('memo').value = ''; $('err').textContent = '';
+    toast(type === 'income' ? '수입이 추가됨' : '지출이 추가됨');
+    amount.focus();
+  });
+
+  /* ---------- 삭제 · 알림 ---------- */
+  var timer;
+  function toast(msg, undo) {
+    $('toastMsg').textContent = msg;
+    $('undo').hidden = !undo;
+    $('toast').classList.add('show');
+    clearTimeout(timer);
+    timer = setTimeout(function () { $('toast').classList.remove('show'); }, undo ? 6000 : 2200);
+  }
+  $('list').addEventListener('click', function (ev) {
+    var btn = ev.target.closest('.del');
+    if (!btn) return;
+    var idx = entries.findIndex(function (e) { return e.id === btn.dataset.id; });
+    if (idx < 0) return;
+    lastDeleted = { entry: entries[idx], index: idx };
+    entries.splice(idx, 1);
+    save(); render();
+    toast('삭제됨', true);
+  });
+  $('undo').addEventListener('click', function () {
+    if (!lastDeleted) return;
+    entries.splice(lastDeleted.index, 0, lastDeleted.entry);
+    lastDeleted = null;
+    save(); render();
+    toast('되돌림');
+  });
+  $('clear').addEventListener('click', function () {
+    if (!entries.length) return;
+    if (!window.confirm('이번 달 포함 모든 내역을 지울까요? 되돌릴 수 없어요.')) return;
+    entries = []; save(); render();
+    toast('모든 내역이 삭제됨');
+  });
+
+  /* ---------- 유리 하이라이트가 포인터를 따라감 ---------- */
+  if (window.matchMedia('(hover: hover) and (pointer: fine)').matches) {
+    document.addEventListener('pointermove', function (ev) {
+      document.querySelectorAll('.glass').forEach(function (el) {
+        var r = el.getBoundingClientRect();
+        var inside = ev.clientX >= r.left && ev.clientX <= r.right && ev.clientY >= r.top && ev.clientY <= r.bottom;
+        el.classList.toggle('hot', inside);
+        if (inside) {
+          el.style.setProperty('--mx', (ev.clientX - r.left) + 'px');
+          el.style.setProperty('--my', (ev.clientY - r.top) + 'px');
+        }
+      });
+    }, { passive: true });
+  }
+
+  $('month').textContent = Y + '년 ' + (M + 1) + '월';
+  setType('expense');
+  render();
+})();
+</script>
+</body>
+</html>
