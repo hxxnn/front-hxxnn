@@ -1,0 +1,408 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가계부 글래스 대시보드</title>
+<script>
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('ledger-theme'); } catch (e) {}
+  if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<style>
+/* 색은 중립색 + 포인트 색(틸) 하나. 배경은 도형 없는 단일 그라데이션. 그림자는 광원 하나(위), 높이 단계 둘. */
+:root {
+  --bg-grad: linear-gradient(165deg, #10242A 0%, #0B161B 55%, #0A1216 100%);
+  --ink: #EAF4F2;
+  --ink-2: rgba(234, 244, 242, .74);
+  --ink-3: rgba(234, 244, 242, .56);
+  --accent: #34D1B2;
+  --on-accent: #04201A;
+  --rest: rgba(234, 244, 242, .42);
+  --well: rgba(255, 255, 255, .06);
+  --well-2: rgba(255, 255, 255, .11);
+  --grid: rgba(255, 255, 255, .10);
+  --edge: rgba(255, 255, 255, .14);
+  --hl: rgba(255, 255, 255, .38);
+  --solid: #15282E;
+  --glass-bg: linear-gradient(160deg, rgba(255,255,255,.13), rgba(255,255,255,.05));
+  --lift-1: 0 10px 28px -12px rgba(0, 0, 0, .55);
+  --lift-2: 0 16px 40px -12px rgba(0, 0, 0, .65);
+  --r-card: 28px;
+  --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+  --spring: cubic-bezier(.34, 1.3, .5, 1);
+}
+:root[data-theme="light"] {
+  --bg-grad: linear-gradient(165deg, #E6F0EE 0%, #EFF5F4 55%, #F4F7F7 100%);
+  --ink: #0D1F1D;
+  --ink-2: rgba(13, 31, 29, .74);
+  --ink-3: rgba(13, 31, 29, .56);
+  --accent: #0A7D69;
+  --on-accent: #FFFFFF;
+  --rest: rgba(13, 31, 29, .34);
+  --well: rgba(13, 31, 29, .05);
+  --well-2: rgba(13, 31, 29, .09);
+  --grid: rgba(13, 31, 29, .10);
+  --edge: rgba(13, 31, 29, .10);
+  --hl: rgba(255, 255, 255, .95);
+  --solid: #F7FAF9;
+  --glass-bg: linear-gradient(160deg, rgba(255,255,255,.72), rgba(255,255,255,.45));
+  --lift-1: 0 10px 28px -14px rgba(20, 60, 55, .30);
+  --lift-2: 0 16px 40px -14px rgba(20, 60, 55, .36);
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; scroll-behavior: smooth; }
+html[data-theme="light"] { color-scheme: light; }
+body { margin: 0; min-height: 100vh; background: var(--bg-grad) fixed; background-color: #0A1216; color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; text-decoration: none; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.vh { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+[hidden] { display: none !important; }
+
+.glass {
+  border-radius: var(--r-card);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(18px) saturate(1.6);
+  backdrop-filter: blur(18px) saturate(1.6);
+  box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-1);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background: var(--solid); } }
+@media (prefers-reduced-transparency: reduce) { .glass { background: var(--solid); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+
+/* ---------- 레이아웃 ---------- */
+.shell { display: grid; grid-template-columns: 72px minmax(0, 1fr); gap: 24px; max-width: 1200px; margin: 0 auto; padding: 20px 16px 40px; }
+.rail { position: sticky; top: 20px; align-self: start; display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 10px; border-radius: 36px; box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-2); }
+.rail .sp { flex: 1; min-height: 12px; }
+.nb { width: 48px; height: 48px; border: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; color: var(--ink-2); transition: background .2s, color .2s, transform .25s var(--spring); }
+.nb:hover { background: var(--well-2); color: var(--ink); }
+.nb:active { transform: scale(.92); }
+.nb svg { width: 22px; height: 22px; }
+.nb.main { background: var(--accent); color: var(--on-accent); }
+.nb.main:hover { background: var(--accent); filter: brightness(1.08); color: var(--on-accent); }
+.nl { display: none; }
+.theme .moon { display: none; }
+:root[data-theme="light"] .theme .sun { display: none; }
+:root[data-theme="light"] .theme .moon { display: block; }
+.content { min-width: 0; }
+.greet { margin: 6px 4px 22px; }
+.greet h1 { margin: 0; font-size: clamp(1.6rem, 4vw, 2.1rem); line-height: 1.2; font-weight: 700; letter-spacing: -.02em; }
+.greet p { margin: 4px 0 0; color: var(--ink-2); }
+.grid { display: grid; gap: 18px; grid-template-columns: minmax(0, 1fr); }
+.colL, .colR { display: contents; }
+.bal { order: 1; } .tiles { order: 2; } .chartcard { order: 3; } .limit { order: 4; }
+@media (min-width: 1000px) {
+  .grid { grid-template-columns: 380px minmax(0, 1fr); align-items: start; }
+  .colL, .colR { display: flex; flex-direction: column; gap: 18px; min-width: 0; }
+}
+section[id] { scroll-margin-top: 20px; }
+
+@media (max-width: 899px) {
+  .shell { grid-template-columns: minmax(0, 1fr); padding-bottom: 112px; }
+  .rail { position: fixed; z-index: 30; left: 16px; right: 16px; bottom: 12px; top: auto; flex-direction: row; justify-content: space-around; align-items: stretch; padding: 8px 6px; border-radius: 30px; }
+  .rail .sp { display: none; }
+  .nb { width: auto; flex: 1; height: 56px; border-radius: 22px; gap: 2px; align-content: center; }
+  .nb svg { width: 22px; height: 22px; justify-self: center; }
+  .nl { display: block; font-size: .72rem; line-height: 1; }
+}
+
+/* ---------- 남은 돈 ---------- */
+.bal { padding: 26px 24px 24px; box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-2); }
+.tl { margin: 0; color: var(--ink-2); font-size: .92rem; }
+.hero-amount { margin: 6px 0 4px; font-size: clamp(3rem, 8vw, 3.5rem); line-height: 1.08; font-weight: 700; letter-spacing: -.03em; white-space: nowrap; }
+.hero-amount small { font-size: .45em; font-weight: 600; letter-spacing: 0; margin-left: 4px; color: var(--ink-2); }
+.note { margin: 0 0 20px; color: var(--ink-2); font-size: .95rem; }
+.btn { display: inline-flex; align-items: center; justify-content: center; min-height: 48px; padding: 0 24px; border: 0; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; transition: transform .2s var(--spring), filter .2s; }
+.btn:hover { filter: brightness(1.07); }
+.btn:active { transform: scale(.97); }
+
+/* ---------- 수입·지출 ---------- */
+.tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.tile { padding: 20px 20px 18px; min-width: 0; }
+.tv { margin: 4px 0 0; font-size: clamp(1.25rem, 3.2vw, 1.6rem); line-height: 1.2; font-weight: 600; letter-spacing: -.015em; white-space: nowrap; }
+.ts { margin: 6px 0 0; color: var(--ink-2); font-size: .85rem; }
+.tile.fill { background: var(--accent); color: var(--on-accent); box-shadow: inset 0 1px 0 rgba(255,255,255,.35), var(--lift-1); -webkit-backdrop-filter: none; backdrop-filter: none; }
+.tile.fill .tl, .tile.fill .ts { color: var(--on-accent); opacity: .92; }
+
+/* ---------- 월별 지출 차트 ---------- */
+.chartcard { padding: 22px 24px 20px; }
+.head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.head h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.head p { margin: 4px 0 0; color: var(--ink-2); font-size: .92rem; }
+.switch { flex: none; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--well); font-weight: 600; transition: background .2s, transform .2s var(--spring); }
+.switch:hover { background: var(--well-2); }
+.switch:active { transform: scale(.96); }
+.plotwrap { padding: 10px 0 0 52px; }
+.plot { position: relative; }
+.gl { position: absolute; left: 0; right: 0; height: 0; border-top: 1px solid var(--grid); }
+.gl span { position: absolute; left: -52px; top: -.7em; width: 44px; text-align: right; white-space: nowrap; font-size: .76rem; color: var(--ink-3); }
+.limitline { position: absolute; left: 0; right: 0; height: 0; border-top: 2px solid var(--ink-2); z-index: 1; }
+.limitline span { position: absolute; right: 0; bottom: 4px; font-size: .78rem; font-weight: 600; color: var(--ink); padding: 0 6px; border-radius: 6px; background: var(--solid); }
+.cols { position: absolute; inset: 0; display: grid; grid-template-columns: repeat(6, 1fr); align-items: end; }
+.col { height: 100%; display: flex; align-items: flex-end; justify-content: center; border-radius: 12px; outline-offset: -2px; }
+.col:hover, .col:focus-visible { background: var(--well); }
+.cbar { width: min(24px, 60%); border-radius: 4px 4px 0 0; background: var(--rest); transition: background .2s; }
+.col.now .cbar, .col:hover .cbar, .col:focus-visible .cbar { background: var(--accent); }
+.mlabels { display: grid; grid-template-columns: repeat(6, 1fr); margin-top: 8px; text-align: center; font-size: .85rem; color: var(--ink-2); }
+.mlabels .now { color: var(--ink); font-weight: 600; }
+.foot { margin: 12px 0 0; color: var(--ink-3); font-size: .82rem; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 12px 10px; text-align: right; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 500; font-size: .88rem; }
+tbody tr:last-child td { border-bottom: 0; }
+
+/* ---------- 월 지출 한도 ---------- */
+.limit { padding: 22px 24px 22px; }
+.limit h2 { margin: 0 0 14px; font-size: 1.1rem; font-weight: 600; }
+.lfield { display: block; margin-bottom: 14px; }
+.lfield > span { display: block; margin: 0 0 6px 4px; font-size: .88rem; color: var(--ink-2); }
+.input { width: 100%; min-height: 48px; padding: 0 46px 0 18px; border: 0; border-radius: 999px; background: var(--well); color: var(--ink); font-size: 1.15rem; font-weight: 600; }
+.iw { position: relative; }
+.iw em { position: absolute; right: 18px; top: 50%; transform: translateY(-50%); font-style: normal; color: var(--ink-2); }
+.meter { height: 10px; border-radius: 999px; background: var(--well-2); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--accent); transition: width .6s var(--spring); }
+.lnote { margin: 10px 2px 0; color: var(--ink-2); font-size: .92rem; }
+
+/* ---------- 툴팁 ---------- */
+.tip { position: fixed; z-index: 40; pointer-events: none; padding: 10px 14px; border-radius: 14px; background: var(--solid); box-shadow: inset 0 0 0 1px var(--edge), var(--lift-2); font-size: .9rem; opacity: 0; transition: opacity .12s; max-width: 220px; }
+.tip.on { opacity: 1; }
+.tip b { display: block; font-weight: 600; }
+.tip span { color: var(--ink-2); }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } html { scroll-behavior: auto; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/></g></symbol>
+    <symbol id="i-bars" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 20V12M12 20V5M19 20v-5"/></g></symbol>
+    <symbol id="i-gauge" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 14l3.5-4.5"/></g></symbol>
+    <symbol id="i-plus" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></g></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></g></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></g></symbol>
+  </defs>
+</svg>
+
+<div class="shell">
+  <nav class="rail glass" aria-label="대시보드 메뉴">
+    <a class="nb" href="#sec-summary" aria-label="요약" title="요약"><svg aria-hidden="true"><use href="#i-home"/></svg><span class="nl">요약</span></a>
+    <a class="nb" href="#sec-chart" aria-label="월별 지출" title="월별 지출"><svg aria-hidden="true"><use href="#i-bars"/></svg><span class="nl">월별</span></a>
+    <a class="nb" href="#sec-limit" aria-label="지출 한도" title="지출 한도"><svg aria-hidden="true"><use href="#i-gauge"/></svg><span class="nl">한도</span></a>
+    <a class="nb main" href="../ledger/index.html" aria-label="내역 추가" title="내역 추가"><svg aria-hidden="true"><use href="#i-plus"/></svg><span class="nl">추가</span></a>
+    <span class="sp"></span>
+    <button class="nb theme" id="theme" type="button" aria-label="라이트 모드로 전환" title="모드 전환">
+      <svg class="sun" aria-hidden="true"><use href="#i-sun"/></svg>
+      <svg class="moon" aria-hidden="true"><use href="#i-moon"/></svg>
+      <span class="nl">모드</span>
+    </button>
+  </nav>
+
+  <main class="content">
+    <header class="greet">
+      <h1 id="greet">안녕하세요</h1>
+      <p id="sub"></p>
+    </header>
+
+    <div class="grid">
+      <div class="colL">
+        <section class="glass bal" id="sec-summary" aria-labelledby="bl">
+          <p class="tl" id="bl">이번 달 남은 돈</p>
+          <p class="hero-amount" id="balance">0원</p>
+          <p class="note" id="note"></p>
+          <a class="btn" href="../ledger/index.html">내역 추가</a>
+        </section>
+
+        <section class="glass limit" id="sec-limit" aria-labelledby="lh">
+          <h2 id="lh">이번 달 지출 한도</h2>
+          <label class="lfield">
+            <span>한도 금액</span>
+            <div class="iw"><input class="input" id="limit" inputmode="numeric" autocomplete="off"><em>원</em></div>
+          </label>
+          <div class="meter" role="img" id="lmeterA11y" aria-label="한도 대비 지출"><i id="lmeter"></i></div>
+          <p class="lnote" id="lnote"></p>
+        </section>
+      </div>
+
+      <div class="colR">
+        <div class="tiles">
+          <article class="glass tile fill">
+            <p class="tl">수입</p>
+            <p class="tv" id="inc">0원</p>
+            <p class="ts">이번 달 들어온 돈</p>
+          </article>
+          <article class="glass tile">
+            <p class="tl">지출</p>
+            <p class="tv" id="exp">0원</p>
+            <p class="ts" id="avg"></p>
+          </article>
+        </div>
+
+        <section class="glass chartcard" id="sec-chart" aria-labelledby="ch">
+          <div class="head">
+            <div>
+              <h2 id="ch">월별 지출</h2>
+              <p id="cin"></p>
+            </div>
+            <button class="switch" id="switch" type="button" aria-pressed="false">표로 보기</button>
+          </div>
+          <div id="chart"></div>
+          <div class="tablewrap" id="tbl" hidden></div>
+          <p class="foot">지난 달 막대는 화면 확인용 예시 데이터예요. 이번 달만 실제 내역이에요.</p>
+        </section>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+(function () {
+  var KEY = 'ledger-test-v1', LKEY = 'ledger-limit';
+  var $ = function (id) { return document.getElementById(id); };
+  var now = new Date();
+  var Y = now.getFullYear(), M = now.getMonth(), D = now.getDate();
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var ym = Y + '-' + pad(M + 1);
+  var iso = function (d) { return ym + '-' + pad(d); };
+  var won = function (n) { return n.toLocaleString('ko-KR') + '원'; };
+  var man = function (n) { return n >= 10000 ? (Math.round(n / 1000) / 10).toString().replace(/\.0$/, '') + '만' : String(n); };
+
+  function seed() {
+    var d = function (n) { return iso(Math.min(n, D)); };
+    var list = [
+      ['income', 2800000, 'salary', '11월 월급', d(1)], ['expense', 450000, 'home', '월세', d(1)],
+      ['expense', 9000, 'food', '점심 김치찌개', d(2)], ['expense', 1450, 'transit', '지하철', d(2)],
+      ['expense', 5200, 'food', '카페 라테', d(3)], ['expense', 89000, 'shop', '운동화', d(3)],
+      ['income', 50000, 'allow', '부모님 용돈', d(3)], ['expense', 15000, 'fun', '영화', d(4)],
+      ['expense', 18500, 'food', '저녁 파스타', d(4)], ['expense', 12800, 'transit', '택시', d(5)],
+      ['expense', 55000, 'etc', '통신비', d(5)], ['expense', 6300, 'food', '아침 샌드위치', d(6)]
+    ];
+    return list.map(function (r, i) { return { id: 's' + i, type: r[0], amount: r[1], cat: r[2], memo: r[3], date: r[4] }; });
+  }
+  var entries;
+  try { var raw = localStorage.getItem(KEY); entries = raw ? JSON.parse(raw) : seed(); } catch (e) { entries = seed(); }
+  var list = entries.filter(function (e) { return e.date.indexOf(ym) === 0; });
+  var inc = 0, exp = 0;
+  list.forEach(function (e) { if (e.type === 'income') inc += e.amount; else exp += e.amount; });
+
+  /* ---------- 인사말 ---------- */
+  var h = now.getHours();
+  $('greet').textContent = h < 5 ? '늦은 시간이에요' : h < 12 ? '좋은 아침이에요' : h < 18 ? '좋은 오후예요' : '좋은 저녁이에요';
+  $('sub').textContent = (M + 1) + '월 가계 현황이에요.';
+
+  /* ---------- 남은 돈 · 수입 · 지출 ---------- */
+  var bal = inc - exp;
+  $('balance').innerHTML = (bal < 0 ? '−' : '') + Math.abs(bal).toLocaleString('ko-KR') + '<small>원</small>';
+  var note;
+  if (!inc && !exp) note = '아직 내역이 없어요.';
+  else if (!inc) note = '수입 내역이 없어요.';
+  else if (exp > inc) note = '수입보다 ' + won(exp - inc) + ' 더 썼어요.';
+  else note = '수입의 ' + Math.round(exp / inc * 100) + '%를 썼어요.';
+  $('note').textContent = note;
+  $('inc').textContent = won(inc);
+  $('exp').textContent = won(exp);
+  $('avg').textContent = '하루 평균 ' + won(Math.round(exp / D));
+
+  /* ---------- 월 지출 한도 ---------- */
+  var limit = 700000;
+  try { var l = parseInt(localStorage.getItem(LKEY), 10); if (l > 0) limit = l; } catch (e) {}
+  var limitEl = $('limit');
+  function renderLimit() {
+    limitEl.value = limit.toLocaleString('ko-KR');
+    var pct = Math.min(100, Math.round(exp / limit * 100));
+    $('lmeter').style.width = pct + '%';
+    $('lmeterA11y').setAttribute('aria-label', '한도 대비 지출 ' + Math.round(exp / limit * 100) + '%');
+    $('lnote').textContent = exp > limit
+      ? '한도를 ' + won(exp - limit) + ' 넘겼어요.'
+      : '한도까지 ' + won(limit - exp) + ' 남았어요. (' + Math.round(exp / limit * 100) + '% 사용)';
+  }
+  limitEl.addEventListener('input', function () {
+    var digits = limitEl.value.replace(/\D/g, '').slice(0, 10);
+    var v = digits ? parseInt(digits, 10) : 0;
+    limitEl.value = v ? v.toLocaleString('ko-KR') : '';
+    if (v > 0) {
+      limit = v;
+      try { localStorage.setItem(LKEY, String(v)); } catch (e) {}
+      var pct = Math.min(100, Math.round(exp / limit * 100));
+      $('lmeter').style.width = pct + '%';
+      $('lnote').textContent = exp > limit ? '한도를 ' + won(exp - limit) + ' 넘겼어요.' : '한도까지 ' + won(limit - exp) + ' 남았어요. (' + Math.round(exp / limit * 100) + '% 사용)';
+      drawChart();
+    }
+  });
+  limitEl.addEventListener('blur', function () { if (!limitEl.value) renderLimit(); });
+
+  /* ---------- 월별 지출 차트 ---------- */
+  var SAMPLE = [812000, 689000, 755000, 904000, 641000];
+  var months = [];
+  for (var i = 5; i >= 0; i--) {
+    var dt = new Date(Y, M - i, 1);
+    months.push({ label: (dt.getMonth() + 1) + '월', v: i === 0 ? exp : SAMPLE[5 - i], now: i === 0 });
+  }
+  var H = 200;
+  var chart = $('chart'), tbl = $('tbl'), tip = $('tip');
+  function drawChart() {
+    var maxV = Math.max.apply(null, months.map(function (m) { return m.v; }).concat([limit])) * 1.08;
+    var steps = [50000, 100000, 200000, 250000, 500000, 1000000, 2000000], step = steps[steps.length - 1], k;
+    for (k = 0; k < steps.length; k++) { if (Math.ceil(maxV / steps[k]) <= 4) { step = steps[k]; break; } }
+    var top = Math.ceil(maxV / step) * step, ticks = '';
+    for (var t = 0; t <= top; t += step) ticks += '<div class="gl" style="bottom:' + (t / top * H) + 'px"><span>' + (t ? man(t) : '0') + '</span></div>';
+    var cols = months.map(function (m, idx) {
+      var sample = !m.now;
+      return '<div class="col' + (m.now ? ' now' : '') + '" tabindex="0" data-i="' + idx + '" role="listitem" aria-label="' + m.label + ' 지출 ' + won(m.v) + (sample ? ', 예시 데이터' : ', 진행 중') + '">' +
+        '<i class="cbar" style="height:' + Math.max(3, m.v / top * H) + 'px"></i></div>';
+    }).join('');
+    chart.innerHTML = '<div class="plotwrap"><div class="plot" style="height:' + H + 'px">' + ticks +
+      '<div class="limitline" style="bottom:' + (limit / top * H) + 'px"><span>한도 ' + man(limit) + '</span></div>' +
+      '<div class="cols" role="list">' + cols + '</div></div>' +
+      '<div class="mlabels">' + months.map(function (m) { return '<span' + (m.now ? ' class="now"' : '') + '>' + m.label + '</span>'; }).join('') + '</div></div>';
+    $('cin').textContent = exp > limit ? '이번 달은 한도를 넘었어요.' : '이번 달은 한도의 ' + Math.round(exp / limit * 100) + '%를 썼어요.';
+    chart.querySelectorAll('.col').forEach(function (el) {
+      var idx = +el.dataset.i;
+      function show(x, y) {
+        var m = months[idx];
+        tip.innerHTML = '<b>' + m.label + ' 지출</b><span>' + won(m.v) + '</span><br><span>' + (m.now ? '진행 중인 달' : '예시 데이터') + '</span>';
+        tip.classList.add('on');
+        var w = tip.offsetWidth, hh = tip.offsetHeight;
+        tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x + 14)) + 'px';
+        tip.style.top = Math.max(8, Math.min(window.innerHeight - hh - 8, y - hh - 10)) + 'px';
+      }
+      el.addEventListener('pointermove', function (ev) { show(ev.clientX, ev.clientY); });
+      el.addEventListener('pointerleave', function () { tip.classList.remove('on'); });
+      el.addEventListener('focus', function () { var b = el.getBoundingClientRect(); show(b.left + b.width / 2, b.top); });
+      el.addEventListener('blur', function () { tip.classList.remove('on'); });
+    });
+    tbl.innerHTML = '<table><caption class="vh">월별 지출 표</caption><thead><tr><th scope="col">월</th><th scope="col">지출</th><th scope="col">구분</th></tr></thead><tbody>' +
+      months.map(function (m) { return '<tr><td>' + m.label + '</td><td>' + won(m.v) + '</td><td>' + (m.now ? '진행 중' : '예시') + '</td></tr>'; }).join('') + '</tbody></table>';
+  }
+  $('switch').addEventListener('click', function () {
+    var on = this.getAttribute('aria-pressed') !== 'true';
+    this.setAttribute('aria-pressed', String(on));
+    this.textContent = on ? '차트로 보기' : '표로 보기';
+    chart.hidden = on; tbl.hidden = !on; tip.classList.remove('on');
+  });
+
+  /* ---------- 다크 · 라이트 ---------- */
+  function applyTheme(t, persist) {
+    document.documentElement.setAttribute('data-theme', t);
+    $('theme').setAttribute('aria-label', t === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환');
+    if (persist) { try { localStorage.setItem('ledger-theme', t); } catch (e) {} }
+  }
+  $('theme').addEventListener('click', function () {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
+  });
+  applyTheme(document.documentElement.getAttribute('data-theme'), false);
+
+  renderLimit();
+  drawChart();
+})();
+</script>
+</body>
+</html>
