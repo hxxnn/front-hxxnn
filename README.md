@@ -12,6 +12,9 @@ skills/front-design/references/
   dashboard-layout.md           대시보드 기본 구성(레일·상단 바·유리 패널·카드)
 skills/front-design/scripts/
   derive-palette.js             배경색·강조색에서 카드·글자 색을 계산하고 대비를 검사
+skills/front-design/assets/
+  dashboard-template.html       바로 쓰는 대시보드 틀(CONFIG만 바꾸면 됨)
+.claude-plugin/marketplace.json 마켓플레이스 등록 파일
 examples/                       지침으로 만든 시험작(가계부, 대시보드 v1~v3)
 ```
 
@@ -24,12 +27,30 @@ examples/                       지침으로 만든 시험작(가계부, 대시�
 5. 주제에 맞는 색과 글꼴을 정한다.
 6. 인터랙티브 요소는 쓸 수 있다고 판단하면 쓴다.
 
+## 설치
+
+Claude Code 2.1.275 이상에서 한 줄로 설치합니다.
+
+```bash
+/plugin install front-hxxnn --marketplace hxxnn/front-hxxnn
+```
+
+마켓플레이스를 먼저 추가하는 방법도 됩니다.
+
+```bash
+/plugin marketplace add hxxnn/front-hxxnn
+/plugin install front-hxxnn@hxxnn-plugins
+```
+
+저장소의 기본 브랜치(main)에 이 파일들이 있어야 위 명령으로 설치됩니다. 브랜치를 지정하려면 `hxxnn/front-hxxnn#브랜치이름` 형식을 씁니다.
+
 ## 사용
 
 스킬 이름은 `front-hxxnn:front-design` 입니다. UI를 만들거나 다시 디자인하는 요청에서 호출합니다.
 
 ## 버전
 
+- 0.5.0: 대시보드 템플릿(assets/dashboard-template.html)과 마켓플레이스 등록 파일 추가
 - 0.4.0: 대시보드 레일에 색상 설정 패널(팔레트 버튼)을 기본으로 포함
 - 0.3.0: 팔레트 직접 지정(배경색·강조색) + 카드 대비 자동 계산 스크립트
 - 0.2.0: 대시보드 기본 구성 추가, 그림자·색·폰트·배경 규칙 정리
