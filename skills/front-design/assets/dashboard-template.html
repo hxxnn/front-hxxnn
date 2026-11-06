@@ -148,16 +148,30 @@ a { color: inherit; text-decoration: none; }
 .card { border-radius: 24px; background: var(--card); box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-1); min-width: 0; }
 
 /* ---------- 레이아웃 ---------- */
-.shell { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 16px; max-width: 1320px; margin: 0 auto; padding: 20px 16px 40px; align-items: start; }
-.rail { position: sticky; top: 92px; margin-top: 72px; align-self: start; display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 8px 6px; border-radius: 28px; z-index: 30; }
+.shell { display: grid; grid-template-columns: 68px minmax(0, 1fr); gap: 16px; max-width: 1320px; margin: 0 auto; padding: 20px 16px 40px; align-items: start; }
+/* 레일: 로고 없이 얇은 유리 알약(.rail-nav) 하나에 원형 아이콘 버튼을 세로로 놓고, 맨 아래에 색상 설정 버튼을 둔다.
+   선택 표시는 버튼 뒤에서 그려지는 액체 물방울(rail-goo.js)이다. 마우스가 가까우면 부풀고, 옮겨 갈 때 늘어났다 맺힌다.
+   rail-goo.js 가 없거나 WebGL 이 안 되면 .nb.active 가 그냥 채워진다. 바깥 .rail 의 glass 는 좁은 화면의 탭바에서만 칠한다. */
+.rail { position: sticky; top: 92px; margin-top: 72px; align-self: start; display: flex; flex-direction: column; align-items: center; gap: 12px; z-index: 30; }
 .rail .sp { flex: 1; min-height: 12px; }
-.nb { width: 40px; height: 40px; border: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; color: var(--ink-2); transition: background .2s, color .2s, transform .25s var(--spring); }
-.nb:hover { background: var(--well-2); color: var(--ink); }
-.nb:active { transform: scale(.92); }
+.rail-nav { position: relative; display: grid; gap: 6px; justify-items: center; padding: 10px 8px; border-radius: 36px; --goo-color: var(--strong); }
+.rail-goo { display: none; position: absolute; pointer-events: none; z-index: 0; }
+.nb { position: relative; z-index: 1; width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; background: transparent; color: var(--ink-2); transition: background .2s, color .2s, transform .28s var(--spring), box-shadow .28s; }
+.nb:hover { background: var(--well-2); color: var(--ink); transform: translateY(-2px) scale(1.1); }
+.nb:not(.active):hover { box-shadow: 0 8px 16px -8px rgba(0, 0, 0, .35); }
+.nb:active { transform: scale(.92); transition-duration: .1s; }
 .nb svg { width: 20px; height: 20px; }
-.nb.main { background: var(--strong); color: var(--on-strong); }
-.nb.main:hover { background: var(--strong); filter: brightness(1.15); color: var(--on-strong); }
+.nb.main { background: var(--green); color: var(--on-green); }   /* 주 행동은 포인트 색. 선택 표시(강한 중립색)와 겹치지 않게 한다 */
+.nb.main:hover { background: var(--green); filter: brightness(1.1); color: var(--on-green); }
+.nb.active, .nb.active:hover { background: var(--strong); color: var(--on-strong); }
+.rail-nav.goo-on .nb.active, .rail-nav.goo-on .nb.active:hover { background: none; }   /* 물방울이 대신 칠한다. 글자색은 위 규칙의 --on-strong */
 .nl { display: none; }
+@media (min-width: 900px) {
+  .rail-goo { display: block; }
+  .rail.glass { background: none; box-shadow: none; -webkit-backdrop-filter: none; backdrop-filter: none; }
+  .nb[data-tip]:hover::after, .nb[data-tip]:focus-visible::after { content: attr(data-tip); position: absolute; left: calc(100% + 14px); top: 50%; transform: translateY(-50%); padding: 5px 12px; border-radius: 8px; background: var(--strong); color: var(--on-strong); font-size: .75rem; font-weight: 600; white-space: nowrap; pointer-events: none; z-index: 5; }
+}
+@media (prefers-reduced-motion: reduce) { .nb { transition: background .2s, color .2s; } .nb:hover, .nb:active { transform: none; } }
 /* ---------- 색상 설정 패널 ---------- */
 .pal { position: fixed; z-index: 60; left: 84px; top: 92px; width: 330px; max-height: calc(100vh - 112px); overflow: auto; padding: 20px 20px 18px; border-radius: 28px; }
 .pal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
@@ -203,9 +217,11 @@ section[id] { scroll-margin-top: 20px; }
 @media (max-width: 899px) {
   .shell { grid-template-columns: minmax(0, 1fr); padding-bottom: 112px; }
   .topbar { top: 12px; padding-left: 18px; }
-  .rail { position: fixed; left: 16px; right: 16px; bottom: 12px; top: auto; margin-top: 0; flex-direction: row; justify-content: space-around; align-items: stretch; padding: 8px 6px; border-radius: 30px; }
+  .rail { position: fixed; left: 16px; right: 16px; bottom: 12px; top: auto; margin-top: 0; flex-direction: row; justify-content: space-around; align-items: stretch; gap: 0; padding: 8px 6px; border-radius: 30px; }
+  .rail-nav { display: contents; }
   .rail .sp { display: none; }
   .nb { width: auto; flex: 1; height: 56px; border-radius: 22px; gap: 2px; align-content: center; }
+  .nb:hover { transform: none; }
   .nb svg { width: 22px; height: 22px; justify-self: center; }
   .nl { display: block; font-size: .7rem; line-height: 1; }
   .panel { padding: 20px 14px 18px; border-radius: 30px; }
@@ -431,6 +447,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
 <div class="tip" id="tip" role="tooltip"></div>
 
+<script src="rail-goo.js"></script>   <!-- 레일 물방울(같은 폴더에 함께 복사). 없어도 선택 표시는 채움색으로 동작한다 -->
 <script>
 /* =====================================================================
    CONFIG: 여기만 바꾼다. (주제, 문구, 데이터)
@@ -524,10 +541,43 @@ var CONFIG = {
   var tip = $('tip');
 
   /* ---------- 레일 · 상단 바 · 인사말 ---------- */
-  $('rail').innerHTML = C.nav.map(function (n) {
-    return '<a class="nb' + (n.primary ? ' main' : '') + '" href="' + esc(n.href) + '" aria-label="' + esc(n.label) + '" title="' + esc(n.label) + '">' + icon(n.icon) + '<span class="nl">' + esc(n.label) + '</span></a>';
-  }).join('') + '<span class="sp"></span>' +
-    '<button class="nb" id="palBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="pal" aria-label="색상 설정" title="색상 설정">' + icon('i-palette') + '<span class="nl">색상</span></button>';
+  $('rail').innerHTML = '<div class="rail-nav glass" id="railNav">' + C.nav.map(function (n) {
+    return '<a class="nb' + (n.primary ? ' main' : '') + '" href="' + esc(n.href) + '" aria-label="' + esc(n.label) + '" data-tip="' + esc(n.label) + '">' + icon(n.icon) + '<span class="nl">' + esc(n.label) + '</span></a>';
+  }).join('') + '</div><span class="sp"></span>' +
+    '<button class="nb" id="palBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="pal" aria-label="색상 설정" data-tip="색상 설정">' + icon('i-palette') + '<span class="nl">색상</span></button>';
+
+  /* ---------- 레일 선택 표시: 스크롤 위치를 따라 현재 구역을 표시하고, 액체 물방울(rail-goo.js)이 따라간다 ---------- */
+  (function railSpy() {
+    var navEl = $('railNav'), links = [].slice.call(navEl.querySelectorAll('.nb:not(.main)'));
+    var secs = links.map(function (a) { var h = a.getAttribute('href'); return h && h.charAt(0) === '#' && h.length > 1 ? document.getElementById(h.slice(1)) : null; });
+    var current = null, lockUntil = 0, ticking = false;
+    function gooMove(animate) {
+      var btn = navEl.querySelector('.nb.active'), G = window.RailGoo;
+      if (G && btn && window.matchMedia('(min-width: 900px)').matches && G.move(navEl, btn, animate)) { navEl.classList.add('goo-on'); return; }
+      navEl.classList.remove('goo-on');
+      if (G) G.hide();
+    }
+    function setActive(i, animate) {
+      if (i === current) return;
+      current = i;
+      links.forEach(function (a, k) { a.classList.toggle('active', k === i); if (k === i) a.setAttribute('aria-current', 'location'); else a.removeAttribute('aria-current'); });
+      gooMove(animate);
+    }
+    function spy() {
+      ticking = false;
+      if (Date.now() < lockUntil) return;
+      var line = window.innerHeight * 0.35, pick = -1, k;
+      for (k = 0; k < secs.length; k++) { if (secs[k] && secs[k].getBoundingClientRect().top <= line) pick = k; }
+      if (window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4) { for (k = secs.length - 1; k >= 0; k--) { if (secs[k]) { pick = k; break; } } }
+      setActive(pick < 0 ? 0 : pick, true);
+    }
+    window.addEventListener('scroll', function () { if (!ticking) { ticking = true; requestAnimationFrame(spy); } }, { passive: true });
+    links.forEach(function (a, k) { a.addEventListener('click', function () { lockUntil = Date.now() + 900; setActive(k, true); }); });
+    window.addEventListener('resize', function () { gooMove(false); });
+    window.addEventListener('load', function () { gooMove(false); });
+    if (window.RailGoo) window.RailGoo.onFail = function () { gooMove(false); };
+    setActive(0, false);
+  })();
   var now = new Date(), h = now.getHours(), dn = ['일', '월', '화', '수', '목', '금', '토'];
   $('greet').textContent = h < 5 ? '늦은 시간이에요' : h < 12 ? '좋은 아침이에요' : h < 18 ? '좋은 오후예요' : '좋은 저녁이에요';
   $('sub').textContent = C.greetingSub;
