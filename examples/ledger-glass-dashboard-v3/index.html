@@ -5,11 +5,71 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>가계부 글래스 대시보드 v3</title>
 <script>
+/* 색상 엔진: 배경색 + 강조색 -> 카드·글자·면 색을 계산하고 대비를 검사한다. (skills/front-design/scripts/derive-palette.js 와 같은 계산) */
 (function () {
-  var t = null;
-  try { t = localStorage.getItem('ledger-theme'); } catch (e) {}
-  if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
-  document.documentElement.setAttribute('data-theme', t);
+  var WHITE = [255, 255, 255], BLACK = [0, 0, 0];
+  function h2r(h) { h = String(h).replace('#', ''); var n = parseInt(h, 16); return [(n >> 16) & 255, (n >> 8) & 255, n & 255]; }
+  function r2h(c) { return '#' + c.map(function (v) { return Math.round(Math.max(0, Math.min(255, v))).toString(16).padStart(2, '0'); }).join('').toUpperCase(); }
+  function lin(v) { v /= 255; return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4); }
+  function lum(c) { return 0.2126 * lin(c[0]) + 0.7152 * lin(c[1]) + 0.0722 * lin(c[2]); }
+  function contrast(a, b) { var x = lum(a), y = lum(b); return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05); }
+  function mix(a, b, t) { return [0, 1, 2].map(function (i) { return a[i] * (1 - t) + b[i] * t; }); }
+  function rgba(c, a) { return 'rgba(' + c.map(Math.round).join(', ') + ', ' + (Math.round(a * 100) / 100) + ')'; }
+  function ok(h) { return /^#[0-9a-fA-F]{6}$/.test(h); }
+
+  function derive(bgHex, accHex) {
+    var bg = h2r(bgHex), accent = h2r(accHex);
+    var dark = lum(bg) < 0.25, toward = dark ? WHITE : BLACK;
+    var ink = mix(bg, toward, 0.9);
+    for (var t = 0.9; t <= 1.0001; t += 0.01) { ink = mix(bg, toward, t); if (contrast(ink, bg) >= 12) break; }
+    var ca = dark ? 0.07 : 0.66, card = mix(bg, WHITE, ca), minR = dark ? 1.10 : 1.04;
+    while (contrast(card, bg) < minR && ca < (dark ? 0.16 : 0.9)) { ca += 0.01; card = mix(bg, WHITE, ca); }
+    function minAlpha(start, target) { var a = start; while (contrast(mix(card, ink, a), card) < target && a < 1) a += 0.02; return Math.round(a * 100) / 100; }
+    var i2 = minAlpha(0.74, 4.5), i3 = minAlpha(0.56, 4.5);
+    var darkOn = mix(bg, BLACK, 0.55);
+    var onAcc = contrast(WHITE, accent) >= contrast(darkOn, accent) ? WHITE : darkOn;
+    var accText = accent.slice();
+    for (var s = 0; s <= 1.0001 && contrast(accText, card) < 4.5; s += 0.04) accText = mix(accent, toward, s);
+    var top = dark ? mix(bg, WHITE, 0.06) : mix(bg, BLACK, 0.03), bot = dark ? mix(bg, BLACK, 0.12) : mix(bg, WHITE, 0.35);
+    var tokens = {
+      '--bg': r2h(bg),
+      '--bg-grad': 'linear-gradient(165deg, ' + r2h(top) + ' 0%, ' + r2h(bg) + ' 55%, ' + r2h(bot) + ' 100%)',
+      '--ink': r2h(ink), '--ink-2': rgba(ink, i2), '--ink-3': rgba(ink, i3),
+      '--accent': r2h(accent), '--green': r2h(accent), '--accent-text': r2h(accText),
+      '--on-accent': r2h(onAcc), '--on-green': r2h(onAcc),
+      '--strong': r2h(ink), '--on-strong': r2h(bg),
+      '--card': rgba(WHITE, ca),
+      '--well': dark ? rgba(WHITE, 0.07) : rgba(ink, 0.05),
+      '--well-2': dark ? rgba(WHITE, 0.12) : rgba(ink, 0.09),
+      '--grid': dark ? rgba(WHITE, 0.10) : rgba(ink, 0.10),
+      '--edge': dark ? rgba(WHITE, 0.14) : rgba(ink, 0.09),
+      '--solid': r2h(mix(bg, WHITE, dark ? 0.09 : 0.85))
+    };
+    var checks = [
+      ['글자와 배경', contrast(ink, bg), 7], ['글자와 카드', contrast(ink, card), 7],
+      ['보조 글자', contrast(mix(card, ink, i3), card), 4.5], ['카드와 배경의 구분', contrast(card, bg), minR],
+      ['강조색 면 위의 글자', contrast(onAcc, accent), 4.5], ['강조색 글자', contrast(accText, card), 4.5],
+      ['강조색 막대·아이콘', contrast(accent, card), 3]
+    ].map(function (c) { return { name: c[0], ratio: Math.round(c[1] * 100) / 100, need: c[2], pass: c[1] + 0.005 >= c[2] }; });
+    return { mode: dark ? 'dark' : 'light', tokens: tokens, checks: checks };
+  }
+  function defaults() {
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches
+      ? { bg: '#EFF5F4', accent: '#0A7D69' } : { bg: '#0B161B', accent: '#34D1B2' };
+  }
+  function load() {
+    try { var p = JSON.parse(localStorage.getItem('ledger-palette')); if (p && ok(p.bg) && ok(p.accent)) return p; } catch (e) {}
+    return defaults();
+  }
+  function save(p) { try { localStorage.setItem('ledger-palette', JSON.stringify(p)); } catch (e) {} }
+  function apply(p) {
+    var d = derive(p.bg, p.accent), root = document.documentElement;
+    root.setAttribute('data-theme', d.mode);
+    Object.keys(d.tokens).forEach(function (k) { root.style.setProperty(k, d.tokens[k]); });
+    return d;
+  }
+  window.LedgerPalette = { derive: derive, apply: apply, load: load, save: save, defaults: defaults, ok: ok };
+  apply(load());
 })();
 </script>
 <style>
@@ -59,7 +119,7 @@
 * { box-sizing: border-box; }
 html { color-scheme: dark; scroll-behavior: smooth; }
 html[data-theme="light"] { color-scheme: light; }
-body { margin: 0; min-height: 100vh; background: var(--bg-grad) fixed; background-color: #0A1216; color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+body { margin: 0; min-height: 100vh; background: var(--bg-grad) fixed; background-color: var(--bg, #0A1216); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
 button, input { font: inherit; color: inherit; }
 button { cursor: pointer; }
 a { color: inherit; text-decoration: none; }
@@ -89,15 +149,35 @@ a { color: inherit; text-decoration: none; }
 .nb.main { background: var(--strong); color: var(--on-strong); }
 .nb.main:hover { background: var(--strong); filter: brightness(1.15); color: var(--on-strong); }
 .nl { display: none; }
-.theme .moon { display: none; }
-:root[data-theme="light"] .theme .sun { display: none; }
-:root[data-theme="light"] .theme .moon { display: block; }
-.stage { display: grid; gap: 16px; min-width: 0; align-content: start; }
+/* ---------- 색상 설정 패널 ---------- */
+.pal { position: fixed; z-index: 60; left: 84px; top: 92px; width: 330px; max-height: calc(100vh - 112px); overflow: auto; padding: 20px 20px 18px; border-radius: 28px; }
+.pal-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 4px; }
+.pal h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.pal-close { min-height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--well-2); font-weight: 600; font-size: .88rem; }
+.pal-sub { margin: 0 0 14px; color: var(--ink-2); font-size: .88rem; }
+.pal h3 { margin: 14px 0 8px; font-size: .86rem; font-weight: 600; color: var(--ink-2); }
+.sws { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px 8px; }
+.sw { display: grid; justify-items: center; gap: 6px; padding: 0; border: 0; background: transparent; font-size: .74rem; color: var(--ink-2); }
+.sw i { width: 44px; height: 44px; border-radius: 50%; display: block; background: linear-gradient(135deg, var(--sb) 50%, var(--sa) 50%); box-shadow: inset 0 0 0 1px var(--edge); transition: transform .2s var(--spring); }
+.sw:active i { transform: scale(.92); }
+.sw[aria-pressed="true"] { color: var(--ink); font-weight: 600; }
+.sw[aria-pressed="true"] i { outline: 2px solid var(--green); outline-offset: 3px; }
+.pick { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 4px 12px; padding: 8px 12px; border-radius: 18px; background: var(--well); }
+.pick + .pick { margin-top: 8px; }
+.pick label { font-size: .9rem; font-weight: 500; }
+.pick small { grid-column: 1; color: var(--ink-3); font-size: .78rem; font-variant-numeric: tabular-nums; }
+.pick input[type="color"] { grid-column: 2; grid-row: 1 / span 2; width: 48px; height: 40px; padding: 0; border: 0; border-radius: 12px; background: transparent; cursor: pointer; }
+.pal-status { margin: 14px 2px 0; font-size: .86rem; color: var(--ink-2); }
+.pal-status b { color: var(--ink); }
+.pal-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 14px; }
+.pal-foot .link { min-height: 40px; padding: 0 14px; border: 0; border-radius: 999px; background: var(--well-2); font-weight: 600; font-size: .88rem; }
+@media (max-width: 899px) { .pal { left: 16px; right: 16px; top: auto; bottom: 92px; width: auto; max-height: 70vh; } }
+.stage { display: grid; grid-template-columns: minmax(0, 1fr); gap: 16px; min-width: 0; align-content: start; }
 .topbar { position: sticky; top: 20px; z-index: 20; display: flex; align-items: center; justify-content: space-between; gap: 12px; min-height: 56px; padding: 6px 8px 6px 22px; border-radius: 999px; }
 .tdate { display: inline-flex; align-items: center; gap: 10px; font-weight: 600; min-width: 0; }
 .tdate svg { width: 20px; height: 20px; color: var(--ink-2); flex: none; }
 .tdate span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.tpill { display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--well-2); font-size: .9rem; font-weight: 600; white-space: nowrap; transition: transform .2s var(--spring), background .2s; }
+.tpill { flex: none; display: inline-flex; align-items: center; gap: 8px; min-height: 40px; padding: 0 16px; border-radius: 999px; background: var(--well-2); font-size: .9rem; font-weight: 600; white-space: nowrap; transition: transform .2s var(--spring), background .2s; }
 .tpill:hover { background: var(--well); }
 .tpill:active { transform: scale(.96); }
 .tpill i { width: 8px; height: 8px; border-radius: 50%; background: var(--green); display: block; }
@@ -225,7 +305,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .st { display: inline-flex; align-items: center; gap: 6px; font-size: .88rem; }
 .st i { width: 8px; height: 8px; border-radius: 50%; background: var(--strong); display: block; }
 .st.in i { background: var(--green); }
-.amt.in { color: var(--green); font-weight: 600; }
+.amt.in { color: var(--accent-text); font-weight: 600; }
 .empty { padding: 24px 6px; color: var(--ink-2); text-align: center; }
 
 /* ---------- 툴팁 ---------- */
@@ -249,8 +329,7 @@ tbody tr:last-child td { border-bottom: 0; }
     <symbol id="i-down" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M6 13l6 6 6-6"/></g></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></g></symbol>
     <symbol id="i-cal" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="5" width="16" height="15" rx="3"/><path d="M8 3v4M16 3v4M4 10h16"/></g></symbol>
-    <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></g></symbol>
-    <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></g></symbol>
+    <symbol id="i-palette" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3a9 9 0 1 0 0 18c1.2 0 2-.8 2-1.8 0-.5-.2-.9-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1 .8-1.8 1.8-1.8H17a4 4 0 0 0 4-4c0-4.4-4-8-9-8z"/><circle cx="7.5" cy="11" r="1" fill="currentColor" stroke="none"/><circle cx="10" cy="7" r="1" fill="currentColor" stroke="none"/><circle cx="14.5" cy="7" r="1" fill="currentColor" stroke="none"/></g></symbol>
     <symbol id="i-food" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 3.5v3M12 3v4M15 3.5v3"/></g></symbol>
     <symbol id="i-transit" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="13.5" rx="3.5"/><path d="M4 11h16M7.5 17v3M16.5 17v3"/></g></symbol>
     <symbol id="i-shop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></g></symbol>
@@ -271,10 +350,9 @@ tbody tr:last-child td { border-bottom: 0; }
     <a class="nb" href="#sec-act" aria-label="최근 내역" title="최근 내역"><svg aria-hidden="true"><use href="#i-list"/></svg><span class="nl">내역</span></a>
     <a class="nb main" href="../ledger/index.html" aria-label="내역 추가" title="내역 추가"><svg aria-hidden="true"><use href="#i-plus"/></svg><span class="nl">추가</span></a>
     <span class="sp"></span>
-    <button class="nb theme" id="theme" type="button" aria-label="라이트 모드로 전환" title="모드 전환">
-      <svg class="sun" aria-hidden="true"><use href="#i-sun"/></svg>
-      <svg class="moon" aria-hidden="true"><use href="#i-moon"/></svg>
-      <span class="nl">모드</span>
+    <button class="nb" id="palBtn" type="button" aria-haspopup="dialog" aria-expanded="false" aria-controls="pal" aria-label="색상 설정" title="색상 설정">
+      <svg aria-hidden="true"><use href="#i-palette"/></svg>
+      <span class="nl">색상</span>
     </button>
   </nav>
 
@@ -351,6 +429,18 @@ tbody tr:last-child td { border-bottom: 0; }
     </div>
   </main>
   </div>
+</div>
+
+<div class="pal glass" id="pal" role="dialog" aria-label="색상 설정" hidden>
+  <div class="pal-head"><h2>색상 설정</h2><button class="pal-close" id="palClose" type="button">닫기</button></div>
+  <p class="pal-sub">배경색과 강조색을 고르면 카드와 글자 색이 자동으로 맞춰져요. 배경이 밝으면 라이트, 어두우면 다크로 바뀌어요.</p>
+  <h3>추천 조합</h3>
+  <div class="sws" id="sws"></div>
+  <h3>직접 고르기</h3>
+  <div class="pick"><label for="cBg">배경색</label><input type="color" id="cBg"><small id="tBg"></small></div>
+  <div class="pick"><label for="cAcc">강조색</label><input type="color" id="cAcc"><small id="tAcc"></small></div>
+  <p class="pal-status" id="palStatus" role="status" aria-live="polite"></p>
+  <div class="pal-foot"><button class="link" id="palReset" type="button">기본 색으로</button></div>
 </div>
 
 <div class="tip" id="tip" role="tooltip"></div>
@@ -508,16 +598,60 @@ tbody tr:last-child td { border-bottom: 0; }
     renderRows();
   });
 
-  /* ---------- 다크 · 라이트 ---------- */
-  function applyTheme(t, persist) {
-    document.documentElement.setAttribute('data-theme', t);
-    $('theme').setAttribute('aria-label', t === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환');
-    if (persist) { try { localStorage.setItem('ledger-theme', t); } catch (e) {} }
+  /* ---------- 색상 설정 ---------- */
+  var LP = window.LedgerPalette;
+  var PRESETS = [
+    ['초록 다크', '#0B161B', '#34D1B2'], ['초록 라이트', '#EFF5F4', '#0A7D69'],
+    ['보라 다크', '#14101F', '#9B7BFF'], ['보라 라이트', '#F3F0FA', '#5B3FD1'],
+    ['파랑 다크', '#0B1220', '#5B9DFF'], ['파랑 라이트', '#EEF2F8', '#1D5FD1'],
+    ['주황 다크', '#1A1210', '#FF8A4C'], ['주황 라이트', '#F8F1EC', '#B8470A']
+  ];
+  var pal = $('pal'), palBtn = $('palBtn'), cur = LP.load();
+  $('sws').innerHTML = PRESETS.map(function (p, i) {
+    return '<button class="sw" type="button" data-i="' + i + '" aria-pressed="false" aria-label="' + p[0] + '"><i style="--sb:' + p[1] + ';--sa:' + p[2] + '"></i>' + p[0] + '</button>';
+  }).join('');
+  function syncPanel(d) {
+    $('cBg').value = cur.bg.toLowerCase(); $('cAcc').value = cur.accent.toLowerCase();
+    $('tBg').textContent = cur.bg.toUpperCase(); $('tAcc').textContent = cur.accent.toUpperCase();
+    $('sws').querySelectorAll('.sw').forEach(function (b) {
+      var p = PRESETS[+b.dataset.i];
+      b.setAttribute('aria-pressed', String(p[1].toLowerCase() === cur.bg.toLowerCase() && p[2].toLowerCase() === cur.accent.toLowerCase()));
+    });
+    var bad = d.checks.filter(function (c) { return !c.pass; });
+    $('palStatus').innerHTML = bad.length
+      ? '<b>확인이 필요해요.</b> ' + bad.slice(0, 3).map(function (c) { return c.name + ' ' + c.ratio + ':1(기준 ' + c.need + ':1)'; }).join(', ') + '. 강조색이나 배경색을 조금 바꿔 보세요.'
+      : '대비 검사를 모두 통과했어요.';
   }
-  $('theme').addEventListener('click', function () {
-    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
-  });
-  applyTheme(document.documentElement.getAttribute('data-theme'), false);
+  function setPal(p, persist) {
+    cur = { bg: p.bg, accent: p.accent };
+    var d = LP.apply(cur);
+    if (persist) LP.save(cur);
+    syncPanel(d);
+  }
+  function placePal() {
+    if (window.innerWidth < 900) { pal.style.left = ''; pal.style.top = ''; return; }
+    var r = document.querySelector('.rail').getBoundingClientRect();
+    pal.style.left = Math.round(r.right + 12) + 'px';
+    pal.style.top = Math.max(12, Math.round(r.top)) + 'px';
+  }
+  window.addEventListener('resize', function () { if (!pal.hidden) placePal(); });
+  window.addEventListener('scroll', function () { if (!pal.hidden) placePal(); }, { passive: true });
+  function openPal(open) {
+    if (open) placePal();
+    pal.hidden = !open;
+    palBtn.setAttribute('aria-expanded', String(open));
+    if (open) { var first = pal.querySelector('.sw[aria-pressed="true"]') || pal.querySelector('.sw'); first.focus(); }
+    else palBtn.focus();
+  }
+  palBtn.addEventListener('click', function () { openPal(pal.hidden); });
+  $('palClose').addEventListener('click', function () { openPal(false); });
+  document.addEventListener('keydown', function (ev) { if (ev.key === 'Escape' && !pal.hidden) openPal(false); });
+  document.addEventListener('pointerdown', function (ev) { if (!pal.hidden && !pal.contains(ev.target) && !palBtn.contains(ev.target)) { pal.hidden = true; palBtn.setAttribute('aria-expanded', 'false'); } });
+  $('sws').addEventListener('click', function (ev) { var b = ev.target.closest('.sw'); if (b) { var p = PRESETS[+b.dataset.i]; setPal({ bg: p[1], accent: p[2] }, true); } });
+  $('cBg').addEventListener('input', function () { setPal({ bg: this.value, accent: cur.accent }, true); });
+  $('cAcc').addEventListener('input', function () { setPal({ bg: cur.bg, accent: this.value }, true); });
+  $('palReset').addEventListener('click', function () { try { localStorage.removeItem('ledger-palette'); } catch (e) {} setPal(LP.defaults(), false); });
+  syncPanel(LP.derive(cur.bg, cur.accent));
 
   renderLimit();
   renderRows();
