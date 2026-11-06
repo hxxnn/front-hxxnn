@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>가계부 대시보드</title>
+<script>
+(function () {
+  var t = null;
+  try { t = localStorage.getItem('ledger-theme'); } catch (e) {}
+  if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', t);
+})();
+</script>
+<style>
+/* 색은 중립색 + 포인트 색(블루) 하나. 그림자는 광원 하나(위), 높이 단계 둘. */
+:root {
+  --bg: #0B1220;
+  --ink: #EAF1FB;
+  --ink-2: rgba(234, 241, 251, .74);
+  --ink-3: rgba(234, 241, 251, .56);
+  --accent: #5B9DFF;
+  --on-accent: #06142E;
+  --rest: rgba(234, 241, 251, .42);
+  --well: rgba(255, 255, 255, .06);
+  --well-2: rgba(255, 255, 255, .11);
+  --grid: rgba(255, 255, 255, .10);
+  --edge: rgba(255, 255, 255, .14);
+  --hl: rgba(255, 255, 255, .38);
+  --solid: #17233A;
+  --glass-bg: linear-gradient(160deg, rgba(255,255,255,.13), rgba(255,255,255,.05));
+  --lift-1: 0 10px 28px -12px rgba(0, 0, 0, .55);
+  --lift-2: 0 16px 40px -12px rgba(0, 0, 0, .65);
+  --r-card: 28px;
+  --font: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Segoe UI", system-ui, sans-serif;
+  --spring: cubic-bezier(.34, 1.3, .5, 1);
+}
+:root[data-theme="light"] {
+  --bg: #EEF1F6;
+  --ink: #0E1A2B;
+  --ink-2: rgba(14, 26, 43, .74);
+  --ink-3: rgba(14, 26, 43, .56);
+  --accent: #1D5FD1;
+  --on-accent: #FFFFFF;
+  --rest: rgba(14, 26, 43, .34);
+  --well: rgba(14, 26, 43, .05);
+  --well-2: rgba(14, 26, 43, .09);
+  --grid: rgba(14, 26, 43, .10);
+  --edge: rgba(14, 26, 43, .10);
+  --hl: rgba(255, 255, 255, .95);
+  --solid: #F7F9FC;
+  --glass-bg: linear-gradient(160deg, rgba(255,255,255,.72), rgba(255,255,255,.45));
+  --lift-1: 0 10px 28px -14px rgba(30, 50, 90, .30);
+  --lift-2: 0 16px 40px -14px rgba(30, 50, 90, .36);
+}
+* { box-sizing: border-box; }
+html { color-scheme: dark; }
+html[data-theme="light"] { color-scheme: light; }
+body { margin: 0; min-height: 100vh; background: var(--bg); color: var(--ink); font-family: var(--font); font-size: 16px; line-height: 1.5; -webkit-font-smoothing: antialiased; }
+button, input { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+
+.glass {
+  border-radius: var(--r-card);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(16px) saturate(1.6);
+  backdrop-filter: blur(16px) saturate(1.6);
+  box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-1);
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) { .glass { background: var(--solid); } }
+@media (prefers-reduced-transparency: reduce) { .glass { background: var(--solid); -webkit-backdrop-filter: none; backdrop-filter: none; } }
+
+.wrap { max-width: 1080px; margin: 0 auto; padding: 12px 16px 64px; }
+.top { position: sticky; top: 12px; z-index: 5; display: flex; align-items: center; gap: 10px; margin: 0 0 22px; padding: 6px 6px 6px 24px; border-radius: 999px; box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-2); }
+h1 { margin: 0; font-size: 1.25rem; font-weight: 700; letter-spacing: -.01em; }
+.top .month { margin-left: auto; color: var(--ink-2); font-size: .95rem; }
+.add { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 999px; background: var(--accent); color: var(--on-accent); font-weight: 700; text-decoration: none; transition: transform .2s var(--spring), filter .2s; }
+.add:hover { filter: brightness(1.06); }
+.add:active { transform: scale(.97); }
+.theme { width: 44px; height: 44px; border: 0; border-radius: 50%; display: grid; place-items: center; background: var(--well); color: var(--ink); transition: background .2s, transform .25s var(--spring); }
+.theme:hover { background: var(--well-2); }
+.theme:active { transform: scale(.92); }
+.theme svg { width: 20px; height: 20px; }
+.theme .moon { display: none; }
+:root[data-theme="light"] .theme .sun { display: none; }
+:root[data-theme="light"] .theme .moon { display: block; }
+@media (max-width: 520px) { .top .month { display: none; } .add { margin-left: auto; } }
+
+/* ---------- 핵심 수치 ---------- */
+.kpis { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); margin-bottom: 18px; }
+@media (min-width: 640px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } .hero { grid-column: 1 / -1; } }
+@media (min-width: 1000px) { .kpis { grid-template-columns: 1.9fr repeat(3, minmax(0, 1fr)); } .hero { grid-column: auto; } }
+.hero { padding: 26px 24px 22px; display: flex; flex-direction: column; box-shadow: inset 0 1px 0 var(--hl), inset 0 0 0 1px var(--edge), var(--lift-2); }
+.tl { margin: 0; color: var(--ink-2); font-size: .92rem; }
+.hero-amount { margin: 4px 0 auto; font-size: clamp(3rem, 8vw, 3.75rem); line-height: 1.08; font-weight: 700; letter-spacing: -.03em; white-space: nowrap; }
+.hero-amount small { font-size: .45em; font-weight: 600; letter-spacing: 0; margin-left: 4px; color: var(--ink-2); }
+.meter { height: 10px; margin-top: 20px; border-radius: 999px; background: var(--well-2); overflow: hidden; }
+.meter i { display: block; height: 100%; width: 0; border-radius: inherit; background: var(--accent); transition: width .6s var(--spring); }
+.hero-note { margin: 10px 2px 0; color: var(--ink-2); font-size: .9rem; }
+.tile { padding: 20px 20px 18px; display: flex; flex-direction: column; min-width: 0; }
+.tv { margin: 4px 0 0; font-size: 1.55rem; line-height: 1.2; font-weight: 600; letter-spacing: -.015em; }
+.tv.in { color: var(--accent); }
+.ts { margin: 6px 0 0; color: var(--ink-2); font-size: .85rem; }
+.spark { display: block; margin-top: auto; padding-top: 12px; width: 100%; height: 44px; overflow: visible; }
+
+/* ---------- 카테고리 분석 ---------- */
+.panel { padding: 24px 24px 22px; }
+.panel-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+.panel h2 { margin: 0; font-size: 1.1rem; font-weight: 600; }
+.insight { margin: 4px 0 0; color: var(--ink-2); font-size: .95rem; }
+.switch { flex: none; min-height: 44px; padding: 0 16px; border: 0; border-radius: 999px; background: var(--well); font-weight: 600; transition: background .2s, transform .2s var(--spring); }
+.switch:hover { background: var(--well-2); }
+.switch:active { transform: scale(.96); }
+.bars { display: grid; gap: 6px; }
+.brow { display: grid; grid-template-columns: 96px minmax(0, 1fr); align-items: center; gap: 14px; min-height: 44px; padding: 0 6px; border-radius: 14px; outline-offset: -2px; }
+.brow:hover, .brow:focus-visible { background: var(--well); }
+.bl { display: flex; align-items: center; gap: 8px; font-weight: 500; }
+.bl svg { width: 18px; height: 18px; color: var(--ink-2); flex: none; }
+.track { display: flex; align-items: center; gap: 10px; height: 100%; border-left: 1px solid var(--grid); }
+.bar { display: block; height: 20px; min-width: 4px; border-radius: 0 4px 4px 0; background: var(--rest); transition: background .2s; }
+.brow.top1 .bar, .brow:hover .bar, .brow:focus-visible .bar { background: var(--accent); }
+.bv { font-weight: 600; white-space: nowrap; font-size: .95rem; }
+.axis-note { margin: 12px 6px 0; color: var(--ink-3); font-size: .82rem; }
+.tablewrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-variant-numeric: tabular-nums; }
+th, td { padding: 12px 10px; text-align: right; border-bottom: 1px solid var(--grid); }
+th:first-child, td:first-child { text-align: left; }
+th { color: var(--ink-2); font-weight: 500; font-size: .88rem; }
+tbody tr:last-child td { border-bottom: 0; }
+.empty { padding: 22px 6px; color: var(--ink-2); }
+.empty a { color: var(--accent); font-weight: 600; }
+[hidden] { display: none !important; }
+
+.tip { position: fixed; z-index: 20; pointer-events: none; padding: 10px 14px; border-radius: 14px; background: var(--solid); box-shadow: inset 0 0 0 1px var(--edge), var(--lift-2); font-size: .9rem; opacity: 0; transition: opacity .12s; max-width: 220px; }
+.tip.on { opacity: 1; }
+.tip b { display: block; font-weight: 600; }
+.tip span { color: var(--ink-2); }
+@media (max-width: 520px) {
+  .panel { padding: 20px 14px 18px; }
+  .brow { grid-template-columns: 74px minmax(0, 1fr); gap: 10px; padding: 0 2px; }
+  .bl { gap: 6px; font-size: .92rem; }
+  .bv { font-size: .88rem; }
+}
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { transition: none !important; } }
+</style>
+</head>
+<body>
+
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    <symbol id="i-food" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11h16a8 8 0 0 1-16 0z"/><path d="M9 3.5v3M12 3v4M15 3.5v3"/></g></symbol>
+    <symbol id="i-transit" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="3.5" width="16" height="13.5" rx="3.5"/><path d="M4 11h16M7.5 17v3M16.5 17v3"/><circle cx="8" cy="14" r=".6"/><circle cx="16" cy="14" r=".6"/></g></symbol>
+    <symbol id="i-shop" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M5 8h14l-1 12H6z"/><path d="M9 8a3 3 0 0 1 6 0"/></g></symbol>
+    <symbol id="i-home" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11l8-7 8 7v9H4z"/><path d="M10 20v-6h4v6"/></g></symbol>
+    <symbol id="i-fun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l2.4 5.6L20 11l-5.6 2.4L12 19l-2.4-5.6L4 11l5.6-2.4z"/></g></symbol>
+    <symbol id="i-etc" viewBox="0 0 24 24"><g fill="currentColor"><circle cx="6" cy="12" r="1.9"/><circle cx="12" cy="12" r="1.9"/><circle cx="18" cy="12" r="1.9"/></g></symbol>
+    <symbol id="i-sun" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6L7 7M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></g></symbol>
+    <symbol id="i-moon" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z"/></g></symbol>
+  </defs>
+</svg>
+
+<main class="wrap">
+  <header class="top glass">
+    <h1>가계부 대시보드</h1>
+    <span class="month" id="month"></span>
+    <a class="add" href="../ledger/index.html">내역 추가</a>
+    <button class="theme" id="theme" type="button" aria-label="라이트 모드로 전환">
+      <svg class="sun" aria-hidden="true"><use href="#i-sun"/></svg>
+      <svg class="moon" aria-hidden="true"><use href="#i-moon"/></svg>
+    </button>
+  </header>
+
+  <section class="kpis" aria-label="핵심 수치">
+    <article class="glass hero">
+      <p class="tl">이번 달 남은 돈</p>
+      <p class="hero-amount" id="balance">0원</p>
+      <div class="meter" role="img" id="meterA11y" aria-label="수입 대비 지출 비율"><i id="meter"></i></div>
+      <p class="hero-note" id="note"></p>
+    </article>
+    <article class="glass tile">
+      <p class="tl">수입</p>
+      <p class="tv in" id="inc">0원</p>
+    </article>
+    <article class="glass tile">
+      <p class="tl">지출</p>
+      <p class="tv" id="exp">0원</p>
+      <svg class="spark" id="spark" viewBox="0 0 120 44" role="img" aria-label="일별 지출 추이" hidden></svg>
+    </article>
+    <article class="glass tile">
+      <p class="tl">하루 평균 지출</p>
+      <p class="tv" id="avg">0원</p>
+      <p class="ts" id="avgNote"></p>
+    </article>
+  </section>
+
+  <section class="glass panel" aria-labelledby="ph">
+    <div class="panel-head">
+      <div>
+        <h2 id="ph">카테고리별 지출</h2>
+        <p class="insight" id="insight"></p>
+      </div>
+      <button class="switch" id="switch" type="button" aria-pressed="false">표로 보기</button>
+    </div>
+    <div id="chart"></div>
+    <div class="tablewrap" id="tbl" hidden></div>
+  </section>
+</main>
+
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script>
+(function () {
+  var CATS = {
+    food: { name: '식비', icon: 'i-food' }, transit: { name: '교통', icon: 'i-transit' },
+    shop: { name: '쇼핑', icon: 'i-shop' }, home: { name: '주거', icon: 'i-home' },
+    fun: { name: '여가', icon: 'i-fun' }, etc: { name: '기타', icon: 'i-etc' }
+  };
+  var KEY = 'ledger-test-v1';
+  var $ = function (id) { return document.getElementById(id); };
+  var now = new Date();
+  var Y = now.getFullYear(), M = now.getMonth(), D = now.getDate();
+  var pad = function (n) { return String(n).padStart(2, '0'); };
+  var ym = Y + '-' + pad(M + 1);
+  var iso = function (d) { return ym + '-' + pad(d); };
+  var won = function (n) { return n.toLocaleString('ko-KR') + '원'; };
+  var icon = function (id) { return '<svg aria-hidden="true"><use href="#' + id + '"/></svg>'; };
+
+  function seed() {
+    var d = function (n) { return iso(Math.min(n, D)); };
+    var list = [
+      ['income', 2800000, 'salary', '11월 월급', d(1)], ['expense', 450000, 'home', '월세', d(1)],
+      ['expense', 9000, 'food', '점심 김치찌개', d(2)], ['expense', 1450, 'transit', '지하철', d(2)],
+      ['expense', 5200, 'food', '카페 라테', d(3)], ['expense', 89000, 'shop', '운동화', d(3)],
+      ['income', 50000, 'allow', '부모님 용돈', d(3)], ['expense', 15000, 'fun', '영화', d(4)],
+      ['expense', 18500, 'food', '저녁 파스타', d(4)], ['expense', 12800, 'transit', '택시', d(5)],
+      ['expense', 55000, 'etc', '통신비', d(5)], ['expense', 6300, 'food', '아침 샌드위치', d(6)]
+    ];
+    return list.map(function (r, i) { return { id: 's' + i, type: r[0], amount: r[1], cat: r[2], memo: r[3], date: r[4] }; });
+  }
+  var entries;
+  try { var raw = localStorage.getItem(KEY); entries = raw ? JSON.parse(raw) : seed(); } catch (e) { entries = seed(); }
+  var list = entries.filter(function (e) { return e.date.indexOf(ym) === 0; });
+
+  var inc = 0, exp = 0, byCat = {}, count = {}, byDay = {};
+  list.forEach(function (e) {
+    if (e.type === 'income') { inc += e.amount; return; }
+    exp += e.amount;
+    byCat[e.cat] = (byCat[e.cat] || 0) + e.amount;
+    count[e.cat] = (count[e.cat] || 0) + 1;
+    var dd = parseInt(e.date.slice(8), 10);
+    byDay[dd] = (byDay[dd] || 0) + e.amount;
+  });
+
+  /* ---------- 핵심 수치 ---------- */
+  var bal = inc - exp;
+  $('balance').innerHTML = (bal < 0 ? '−' : '') + Math.abs(bal).toLocaleString('ko-KR') + '<small>원</small>';
+  $('inc').textContent = won(inc);
+  $('exp').textContent = won(exp);
+  var pct = inc > 0 ? Math.min(100, Math.round(exp / inc * 100)) : (exp > 0 ? 100 : 0);
+  $('meter').style.width = pct + '%';
+  $('meterA11y').setAttribute('aria-label', '수입 대비 지출 ' + (inc > 0 ? Math.round(exp / inc * 100) : 0) + '%');
+  var note;
+  if (!inc && !exp) note = '아직 내역이 없어요.';
+  else if (!inc) note = '수입 내역이 없어요.';
+  else if (exp > inc) note = '수입보다 ' + won(exp - inc) + ' 더 썼어요.';
+  else note = '수입의 ' + Math.round(exp / inc * 100) + '%를 썼어요.';
+  $('note').textContent = note;
+  $('avg').textContent = won(Math.round(exp / D));
+  $('avgNote').textContent = D + '일 동안 쓴 돈을 나눈 값이에요.';
+
+  /* 일별 지출 추이(스파크라인): 선은 중립색, 오늘은 포인트 색 */
+  if (D >= 2 && exp > 0) {
+    var pts = [], maxd = 0, k;
+    for (k = 1; k <= D; k++) { var v = byDay[k] || 0; pts.push(v); if (v > maxd) maxd = v; }
+    var W = 120, H = 44, padx = 6, pady = 6;
+    var xy = pts.map(function (v, i) { return [padx + i * (W - padx * 2) / (pts.length - 1), H - pady - (maxd ? v / maxd * (H - pady * 2) : 0)]; });
+    var path = xy.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join('');
+    var last = xy[xy.length - 1];
+    var sp = $('spark');
+    sp.innerHTML = '<path d="' + path + '" fill="none" stroke="var(--rest)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>' +
+      '<circle cx="' + last[0] + '" cy="' + last[1] + '" r="4" fill="var(--accent)" stroke="var(--solid)" stroke-width="2"/>';
+    sp.removeAttribute('hidden');
+    sp.setAttribute('aria-label', '일별 지출 추이, 오늘 ' + won(pts[pts.length - 1]));
+  }
+
+  /* ---------- 카테고리 분석 ---------- */
+  var rows = Object.keys(byCat).map(function (k) { return { id: k, name: CATS[k].name, icon: CATS[k].icon, v: byCat[k], n: count[k] }; })
+    .sort(function (a, b) { return b.v - a.v; });
+  var chart = $('chart'), tbl = $('tbl');
+  if (!rows.length) {
+    $('insight').textContent = '';
+    chart.innerHTML = '<p class="empty">이번 달 지출이 아직 없어요. <a href="../ledger/index.html">내역 추가</a>에서 첫 지출을 입력하면 분석이 나타나요.</p>';
+    $('switch').hidden = true;
+  } else {
+    var top = rows[0];
+    var josa = ((top.name.charCodeAt(top.name.length - 1) - 0xAC00) % 28) ? '이' : '가';
+    $('insight').textContent = top.name + josa + ' 지출의 ' + Math.round(top.v / exp * 100) + '%로 가장 커요.';
+    var max = top.v;
+    chart.innerHTML = '<div class="bars" role="list">' + rows.map(function (r, i) {
+      var share = Math.round(r.v / exp * 100);
+      return '<div class="brow' + (i === 0 ? ' top1' : '') + '" role="listitem" tabindex="0" data-i="' + i + '" aria-label="' + r.name + ' ' + won(r.v) + ', 지출의 ' + share + '%, ' + r.n + '건">' +
+        '<span class="bl">' + icon(r.icon) + r.name + '</span>' +
+        '<span class="track"><i class="bar" style="width:calc((100% - 96px) * ' + (r.v / max).toFixed(4) + ')"></i><b class="bv">' + won(r.v) + '</b></span></div>';
+    }).join('') + '</div><p class="axis-note">막대 길이는 가장 큰 지출을 기준으로 한 상대 비교예요.</p>';
+    tbl.innerHTML = '<table><caption class="vh" style="position:absolute;left:-9999px">카테고리별 지출 표</caption><thead><tr><th scope="col">카테고리</th><th scope="col">금액</th><th scope="col">비율</th><th scope="col">건수</th></tr></thead><tbody>' +
+      rows.map(function (r) { return '<tr><td>' + r.name + '</td><td>' + won(r.v) + '</td><td>' + Math.round(r.v / exp * 100) + '%</td><td>' + r.n + '건</td></tr>'; }).join('') +
+      '</tbody></table>';
+
+    var tip = $('tip');
+    function show(i, x, y) {
+      var r = rows[i];
+      tip.innerHTML = '<b>' + r.name + '</b><span>' + won(r.v) + '</span><br><span>지출의 ' + Math.round(r.v / exp * 100) + '%, ' + r.n + '건</span>';
+      tip.classList.add('on');
+      var w = tip.offsetWidth, h = tip.offsetHeight;
+      tip.style.left = Math.max(8, Math.min(window.innerWidth - w - 8, x + 14)) + 'px';
+      tip.style.top = Math.max(8, Math.min(window.innerHeight - h - 8, y - h - 10)) + 'px';
+    }
+    function hide() { tip.classList.remove('on'); }
+    chart.querySelectorAll('.brow').forEach(function (el) {
+      var i = +el.dataset.i;
+      el.addEventListener('pointermove', function (ev) { show(i, ev.clientX, ev.clientY); });
+      el.addEventListener('pointerleave', hide);
+      el.addEventListener('focus', function () { var b = el.getBoundingClientRect(); show(i, b.left + b.width / 2, b.top); });
+      el.addEventListener('blur', hide);
+    });
+
+    $('switch').addEventListener('click', function () {
+      var on = this.getAttribute('aria-pressed') !== 'true';
+      this.setAttribute('aria-pressed', String(on));
+      this.textContent = on ? '차트로 보기' : '표로 보기';
+      chart.hidden = on; tbl.hidden = !on; hide();
+    });
+  }
+
+  /* ---------- 다크 · 라이트 ---------- */
+  function applyTheme(t, persist) {
+    document.documentElement.setAttribute('data-theme', t);
+    $('theme').setAttribute('aria-label', t === 'dark' ? '라이트 모드로 전환' : '다크 모드로 전환');
+    if (persist) { try { localStorage.setItem('ledger-theme', t); } catch (e) {} }
+  }
+  $('theme').addEventListener('click', function () {
+    applyTheme(document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark', true);
+  });
+  applyTheme(document.documentElement.getAttribute('data-theme'), false);
+  $('month').textContent = Y + '년 ' + (M + 1) + '월';
+})();
+</script>
+</body>
+</html>
